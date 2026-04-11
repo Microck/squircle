@@ -80,11 +80,6 @@ pnpm lint
 pnpm build
 ```
 
-## deployment
-
-the canonical public app is [squircle.micr.dev](https://squircle.micr.dev).
-
-the vercel deployment is [squircle-microck-projects.vercel.app](https://squircle-microck-projects.vercel.app). it is currently reachable, but it returns `x-robots-tag: noindex`, so the custom domain is the better URL to share.
 
 ## license
 
