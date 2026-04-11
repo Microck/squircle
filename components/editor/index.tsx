@@ -76,6 +76,30 @@ function getFileStem(name: string) {
   return name.replace(/\.[^/.]+$/, "");
 }
 
+function getExportHostSuffix() {
+  if (typeof window === "undefined") {
+    return "";
+  }
+
+  const sanitizedHostname = window.location.hostname
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9-]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+
+  return sanitizedHostname ? `_${sanitizedHostname}` : "";
+}
+
+function getExportFileName(stem: string, extension: string, index?: number) {
+  const prefix = typeof index === "number" ? `export-${index + 1}-${stem}` : `export-${stem}`;
+  return `${prefix}${getExportHostSuffix()}.${extension}`;
+}
+
+function getExportArchiveName(count: number) {
+  return `squircle-batch-${count}${getExportHostSuffix()}.zip`;
+}
+
 function createMediaId() {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
     return crypto.randomUUID();
@@ -534,12 +558,12 @@ export function SquircleEditor() {
 
       if (item.kind === "gif") {
         const blob = await renderGifItemToBlob(item);
-        downloadBlob(blob, `export-${getFileStem(item.file.name)}.gif`);
+        downloadBlob(blob, getExportFileName(getFileStem(item.file.name), "gif"));
         return;
       }
 
       const blob = await renderStillItemToBlob(item);
-      downloadBlob(blob, `export-${getFileStem(item.file.name)}.png`);
+      downloadBlob(blob, getExportFileName(getFileStem(item.file.name), "png"));
       return;
     }
 
@@ -552,7 +576,7 @@ export function SquircleEditor() {
       if (item.kind === "gif") {
         const blob = await renderGifItemToBlob(item);
         zip.file(
-          `export-${index + 1}-${getFileStem(item.file.name)}.gif`,
+          getExportFileName(getFileStem(item.file.name), "gif", index),
           await blob.arrayBuffer(),
         );
         continue;
@@ -560,13 +584,13 @@ export function SquircleEditor() {
 
       const blob = await renderStillItemToBlob(item);
       zip.file(
-        `export-${index + 1}-${getFileStem(item.file.name)}.png`,
+        getExportFileName(getFileStem(item.file.name), "png", index),
         await blob.arrayBuffer(),
       );
     }
 
     const content = await zip.generateAsync({ type: "blob" });
-    downloadBlob(content, `squircle-batch-${mediaItems.length}.zip`);
+    downloadBlob(content, getExportArchiveName(mediaItems.length));
   }, [mediaItems, renderGifItemToBlob, renderStillItemToBlob]);
 
   const removeMediaItem = useCallback((id: string, event: React.MouseEvent) => {
@@ -776,15 +800,12 @@ export function SquircleEditor() {
           />
         </div>
 
-        <div className="bg-card rounded-2xl border border-border p-4 space-y-5">
+        <div className="space-y-4">
           <div className="flex justify-between items-center gap-4">
-            <div>
-              <p className="text-sm font-semibold text-foreground tracking-wide">Crop / Zoom</p>
-              <p className="text-xs text-muted-foreground mt-1">
-                Cover-style crop that keeps the original aspect ratio.
-              </p>
-            </div>
-            <span className="text-sm text-muted-foreground">{Math.round(activeCrop.zoom * 100)}%</span>
+            <label className="text-sm font-semibold text-foreground tracking-wide">
+              Crop / Zoom:{" "}
+              <span className="font-normal text-muted-foreground">{Math.round(activeCrop.zoom * 100)}%</span>
+            </label>
           </div>
           <Slider
             className="cursor-ew-resize"
