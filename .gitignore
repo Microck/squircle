@@ -4,6 +4,16 @@
 /node_modules
 /.pnp
 .pnp.*
+
+# next.js build output
+/.next
+/out
+*.tsbuildinfo
+
+# local scratch
+out.log
+ref.jpg
+test-results/
 .yarn/*
 !.yarn/patches
 !.yarn/plugins

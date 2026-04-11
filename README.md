@@ -1,36 +1,94 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+<p align="center">
+  <img src=".github/assets/squircle-logo.svg" alt="squircle" width="720">
+</p>
 
-## Getting Started
+<p align="center">
+  <a href="https://github.com/Microck/squircle"><img src="https://img.shields.io/badge/github-Microck%2Fsquircle-000000?style=flat-square" alt="github badge"></a>
+  <a href="https://squircle-qzfyov1pn-microck-projects.vercel.app"><img src="https://img.shields.io/badge/live-vercel-000000?style=flat-square" alt="live badge"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-mit-000000?style=flat-square" alt="license badge"></a>
+  <img src="https://img.shields.io/badge/next.js-16-000000?style=flat-square" alt="next.js badge">
+  <img src="https://img.shields.io/badge/rendering-local%20only-000000?style=flat-square" alt="local rendering badge">
+</p>
 
-First, run the development server:
+---
+
+`squircle` is a browser-only image corner tool for rounded corners and true squircles. drop one image or a whole batch, tune the corner profile, shadow, and outline, then export transparent-corner pngs without sending files to a server.
+
+[live app](https://squircle-qzfyov1pn-microck-projects.vercel.app) | [github](https://github.com/Microck/squircle)
+
+<p align="center">
+  <video src=".github/assets/squircle-showcase.mp4" controls muted loop playsinline width="100%"></video>
+</p>
+
+## why
+
+most "round my image corners" tools either upload the file, flatten everything into a generic crop, or stop at one simple radius control. `squircle` keeps the work local, gives you a true squircle mode, and lets you dial the final presentation details before export instead of fixing them later in another editor.
+
+## quickstart
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
+pnpm install
 pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+open `http://127.0.0.1:3000`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+if you want the dev server exposed on your local network:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+pnpm dev --hostname 0.0.0.0 --port 3004
+```
 
-## Learn More
+## feature surface
 
-To learn more about Next.js, take a look at the following resources:
+- drag and drop one image or many images in one pass
+- switch between `squircle` and standard rounded-corner output
+- tune corner radius with live preview
+- add drop shadow with blur, opacity, offset, and color control
+- add outer outline with width, opacity, and color control
+- edit shadow and outline colors with picker plus hex input
+- preview on dark or light surfaces before export
+- export a single image as `png`
+- export a whole batch as a `.zip` of rendered `png` files
+- keep image processing in the browser instead of uploading source files
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## input and output behavior
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- supported input formats currently include common browser-decoded image formats such as `jpeg`, `png`, `webp`, `gif`, `avif`, and `svg`
+- export is `png` only
+- animated `gif` and animated `webp` inputs are currently treated as first-frame-only
+- metadata is not preserved during export
+- the output keeps the rendered source dimensions after the chosen corner, shadow, and outline settings are applied
 
-## Deploy on Vercel
+## local development
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+`squircle` is a Next.js app-router app with React 19, Tailwind CSS v4, Base UI primitives, `three` for the pixel-snow background, and `jszip` for batch export packaging.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+use the normal app loop during development:
+
+```bash
+pnpm dev
+```
+
+for a production build check:
+
+```bash
+pnpm build
+pnpm start
+```
+
+## testing
+
+```bash
+pnpm test
+pnpm lint
+pnpm build
+```
+
+## deployment
+
+`squircle` is live on Vercel at [squircle-qzfyov1pn-microck-projects.vercel.app](https://squircle-qzfyov1pn-microck-projects.vercel.app).
+
+## license
+
+[mit license](LICENSE)
