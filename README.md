@@ -84,11 +84,9 @@ pnpm build
 
 ## deployment
 
-`squircle` is deployed on Vercel at [squircle-microck-projects.vercel.app](https://squircle-microck-projects.vercel.app).
+`squircle` is publicly deployed on Vercel at [squircle-microck-projects.vercel.app](https://squircle-microck-projects.vercel.app).
 
 the custom production domain is configured as [squircle.micr.dev](https://squircle.micr.dev). it will verify once DNS points `A squircle.micr.dev` to `76.76.21.21`.
-
-the current Vercel project is protected by Vercel Authentication, so anonymous requests return `401` unless you use a permitted session or a temporary share URL.
 
 ## license
 
