@@ -1,22 +1,24 @@
 ## Basics
 
-- [x] Favicon (`app/favicon.ico`)
+- [x] Favicon (`app/favicon.ico`) verified in source and production
 - [ ] Web app manifest
 - [x] Theme color meta tag
 - [ ] robots.txt
 - [ ] sitemap.xml
 - [ ] .well-known/security.txt
 - [x] Custom production domain configured in Vercel (`squircle.micr.dev`)
-- [ ] DNS A record verified for `squircle.micr.dev -> 76.76.21.21`
+- [x] Production custom domain responds over HTTPS
+- [ ] Custom-domain DNS note verified against the current Vercel DNS setup
 
 ## Performance
 
-- [ ] Loading skeletons or spinners
-- [ ] Lazy loading for images/iframes
-- [ ] Cache headers (Cache-Control, ETag)
-- [x] Font loading strategy
+- [ ] Loading states for long-running import/export actions
+- [x] Code splitting for batch export (`import("jszip")`)
+- [x] Cache headers (`Cache-Control`, `ETag`) on the production response
+- [x] CDN for static assets via Vercel
+- [x] Font loading strategy (`next/font`)
 - [x] Preload critical resources
-- [ ] Image optimization (`next/image`, `srcset`, or equivalent)
+- [x] Image optimization for site-owned assets (`next/image` for the page logo)
 
 ## SEO
 
@@ -35,14 +37,13 @@
 - [ ] Visible focus indicators audit
 - [ ] Color contrast audit (WCAG AA+)
 - [ ] Screen reader testing
-- [ ] Skip link
-- [ ] Associated form labels audit
-- [ ] ARIA-live for dynamic errors
+- [ ] Associated labels and instructions audit for editor controls
+- [ ] ARIA-live messaging for validation or export errors
 
 ## Security
 
-- [ ] HTTPS enforced policy documented
-- [ ] HSTS header documented
+- [x] HTTPS enforced (HTTP redirects to HTTPS in production)
+- [x] HSTS header
 - [ ] Content Security Policy
 - [ ] X-Frame-Options or `frame-ancestors`
 - [ ] X-Content-Type-Options
@@ -54,26 +55,20 @@
 
 - [x] Responsive design
 - [ ] Touch targets >= 44x44 px audit
-- [ ] Loading states audit
+- [ ] Loading states audit across upload, preview, and export flows
 - [ ] Custom 404/500 pages
 - [x] Single-screen navigation is intentionally simple
 
 ## Legal & Privacy
 
-- [ ] Privacy policy
-- [ ] Terms of service
-- [ ] Cookie consent decision documented
 - [ ] Contact information page or footer
 - [ ] Copyright notice
 
 ## Development & Deployment
 
-- [ ] Environment variables documented
 - [ ] CI/CD pipeline
 - [x] Automated tests
 - [x] Linting
 - [x] Build pipeline
-- [ ] Error tracking
-- [ ] Analytics
 - [ ] Uptime monitoring
 - [ ] Rollback plan

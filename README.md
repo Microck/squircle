@@ -3,19 +3,27 @@
 </p>
 
 <p align="center">
+  a browser-only image corner tool for rounded corners and true squircles.
+</p>
+
+<p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-mit-000000?style=flat-square" alt="license badge"></a>
   <img src="https://img.shields.io/badge/next.js-16-000000?style=flat-square" alt="next.js badge">
 </p>
 
----
-
-`squircle` is a browser-only image corner tool for rounded corners and true squircles. drop one image or a whole batch, tune the corner profile, shadow, and outline, then export transparent-corner pngs without sending files to a server.
-
-[vercel deployment](https://squircle-microck-projects.vercel.app) | [custom domain](https://squircle.micr.dev) | [github](https://github.com/Microck/squircle)
+<p align="center">
+  <a href="https://squircle.micr.dev">live app</a> |
+  <a href="https://squircle-microck-projects.vercel.app">vercel deployment</a> |
+  <a href="https://github.com/Microck/squircle">github</a>
+</p>
 
 <p align="center">
   <video src=".github/assets/squircle-showcase.mp4" controls muted loop playsinline width="100%"></video>
 </p>
+
+---
+
+drop one image or a whole batch, tune the corner profile, shadow, and outline, then export transparent-corner pngs without sending files to a server.
 
 ## why
 
@@ -51,7 +59,7 @@ pnpm dev --hostname 0.0.0.0 --port 3004
 
 ## input and output behavior
 
-- supported input formats currently include common browser-decoded image formats such as `jpeg`, `png`, `webp`, `gif`, `avif`, and `svg`
+- supported input formats depend on what the browser can decode, including common formats such as `jpeg`, `png`, `webp`, `gif`, `avif`, and `svg`
 - export is `png` only
 - animated `gif` and animated `webp` inputs are currently treated as first-frame-only
 - metadata is not preserved during export
@@ -59,7 +67,7 @@ pnpm dev --hostname 0.0.0.0 --port 3004
 
 ## local development
 
-`squircle` is a Next.js app-router app with React 19, Tailwind CSS v4, Base UI primitives, `three` for the pixel-snow background, and `jszip` for batch export packaging.
+`squircle` is a next.js app-router app with react 19, tailwind css v4, base ui primitives, `three` for the pixel-snow background, and `jszip` for batch export packaging.
 
 use the normal app loop during development:
 
@@ -84,10 +92,10 @@ pnpm build
 
 ## deployment
 
-`squircle` is publicly deployed on Vercel at [squircle-microck-projects.vercel.app](https://squircle-microck-projects.vercel.app).
+`squircle` is publicly deployed on vercel at [squircle-microck-projects.vercel.app](https://squircle-microck-projects.vercel.app).
 
-the custom production domain is configured as [squircle.micr.dev](https://squircle.micr.dev). it will verify once DNS points `A squircle.micr.dev` to `76.76.21.21`.
+the custom production domain is live at [squircle.micr.dev](https://squircle.micr.dev).
 
 ## license
 
-[mit license](LICENSE)
+released under the [mit license](LICENSE).
