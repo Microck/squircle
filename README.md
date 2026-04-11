@@ -8,7 +8,7 @@
 </p>
 
 <p align="center">
-  <video src=".github/assets/squircle-showcase.mp4" controls muted loop playsinline width="800"></video>
+  <video src="https://github.com/user-attachments/assets/4e1796d0-0bb1-4033-8105-49d24be46d91" controls muted loop playsinline width="800"></video>
 </p>
 
 ---
