@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
+import NextImage from "next/image";
 import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -384,7 +385,7 @@ export function SquircleEditor() {
               className={`relative shrink-0 w-14 h-14 rounded-lg overflow-hidden border-2 cursor-pointer transition-all ${activeImageId === img.id ? 'border-primary ring-2 ring-ring ring-offset-2 ring-offset-background' : 'border-transparent opacity-60 hover:opacity-100'}`} 
               onClick={() => setActiveImageId(img.id)}
             >
-              <img alt="" src={img.url} className="w-full h-full object-cover" />
+              <NextImage alt="" src={img.url} fill className="w-full h-full object-cover" />
               <button 
                 onClick={(e) => removeImage(img.id, e)}
                 className="absolute top-0.5 right-0.5 bg-background/80 text-foreground rounded-full p-0.5 hover:bg-destructive hover:text-destructive-foreground transition-colors"
