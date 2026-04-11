@@ -3,10 +3,6 @@
 </p>
 
 <p align="center">
-  a browser-only image corner tool for rounded corners and true squircles.
-</p>
-
-<p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-mit-000000?style=flat-square" alt="license badge"></a>
   <img src="https://img.shields.io/badge/next.js-16-000000?style=flat-square" alt="next.js badge">
 </p>
@@ -15,19 +11,13 @@
   <video src=".github/assets/squircle-showcase.mp4" controls muted loop playsinline width="800"></video>
 </p>
 
-<p align="center">
-  <a href="https://squircle.micr.dev">live app</a> |
-  <a href="https://squircle-microck-projects.vercel.app">vercel deployment</a> |
-  <a href="https://github.com/Microck/squircle">github</a>
-</p>
-
 ---
 
 drop one image or a whole batch, tune the corner profile, shadow, and outline, then export transparent-corner pngs without sending files to a server.
 
 ## why
 
-most "round my image corners" tools either upload the file, flatten everything into a generic crop, or stop at one simple radius control. `squircle` keeps the work local, gives you a true squircle mode, and lets you dial the final presentation details before export instead of fixing them later in another editor.
+most "round my image corners" tools online either dont work, mess up the image quality or are missing features i would like to have. `squircle` keeps the work local, gives you a true squircle mode, and lets you dial the final presentation details before export instead of fixing them later in another editor.
 
 ## quickstart
 
