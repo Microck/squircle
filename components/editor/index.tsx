@@ -13,6 +13,7 @@ import {
   ColorPickerHue,
   ColorPickerSelection,
 } from "@/components/ui/color-picker";
+import { applyExportDeband } from "@/lib/export-deband";
 
 type ImageItem = {
   id: string;
@@ -190,6 +191,15 @@ export function SquircleEditor() {
 
   const activeImage = images.find(img => img.id === activeImageId)?.obj;
 
+  const prepareCanvasForExport = useCallback((canvas: HTMLCanvasElement) => {
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    applyExportDeband(imageData.data, canvas.width, canvas.height);
+    ctx.putImageData(imageData, 0, 0);
+  }, []);
+
   const drawToCanvas = useCallback((
     canvas: HTMLCanvasElement,
     imageObj: HTMLImageElement
@@ -303,6 +313,7 @@ export function SquircleEditor() {
     if (images.length === 1) {
       const canvas = document.createElement("canvas");
       drawToCanvas(canvas, images[0].obj);
+      prepareCanvasForExport(canvas);
       const dataUrl = canvas.toDataURL("image/png");
       const a = document.createElement("a");
       a.href = dataUrl;
@@ -317,6 +328,7 @@ export function SquircleEditor() {
       for (let i = 0; i < images.length; i++) {
         const canvas = document.createElement("canvas");
         drawToCanvas(canvas, images[i].obj);
+        prepareCanvasForExport(canvas);
         const dataUrl = canvas.toDataURL("image/png").split(',')[1];
         zip.file(`export-${i+1}-${images[i].file.name.replace(/\.[^/.]+$/, "")}.png`, dataUrl, {base64: true});
       }
