@@ -1,6 +1,6 @@
 ## Basics
 
-- [x] Favicon (`app/favicon.ico`) verified in source and production
+- [x] Favicon and app icons (`app/favicon.ico`, `app/icon.svg`, `app/apple-icon.png`) verified in source
 - [ ] Web app manifest
 - [x] Theme color meta tag
 - [ ] robots.txt

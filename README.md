@@ -12,13 +12,13 @@
 </p>
 
 <p align="center">
-  <a href="https://squircle.micr.dev">live app</a> |
-  <a href="https://squircle-microck-projects.vercel.app">vercel deployment</a> |
-  <a href="https://github.com/Microck/squircle">github</a>
+  <video src=".github/assets/squircle-showcase.mp4" controls muted loop playsinline width="800"></video>
 </p>
 
 <p align="center">
-  <video src=".github/assets/squircle-showcase.mp4" controls muted loop playsinline width="100%"></video>
+  <a href="https://squircle.micr.dev">live app</a> |
+  <a href="https://squircle-microck-projects.vercel.app">vercel deployment</a> |
+  <a href="https://github.com/Microck/squircle">github</a>
 </p>
 
 ---
@@ -92,9 +92,9 @@ pnpm build
 
 ## deployment
 
-`squircle` is publicly deployed on vercel at [squircle-microck-projects.vercel.app](https://squircle-microck-projects.vercel.app).
+the canonical public app is [squircle.micr.dev](https://squircle.micr.dev).
 
-the custom production domain is live at [squircle.micr.dev](https://squircle.micr.dev).
+the vercel deployment is [squircle-microck-projects.vercel.app](https://squircle-microck-projects.vercel.app). it is currently reachable, but it returns `x-robots-tag: noindex`, so the custom domain is the better URL to share.
 
 ## license
 
