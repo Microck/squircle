@@ -4,7 +4,7 @@
 
 <p align="center">
   <a href="https://github.com/Microck/squircle"><img src="https://img.shields.io/badge/github-Microck%2Fsquircle-000000?style=flat-square" alt="github badge"></a>
-  <a href="https://squircle-qzfyov1pn-microck-projects.vercel.app"><img src="https://img.shields.io/badge/live-vercel-000000?style=flat-square" alt="live badge"></a>
+  <a href="https://squircle-microck-projects.vercel.app"><img src="https://img.shields.io/badge/deployment-vercel-000000?style=flat-square" alt="deployment badge"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-mit-000000?style=flat-square" alt="license badge"></a>
   <img src="https://img.shields.io/badge/next.js-16-000000?style=flat-square" alt="next.js badge">
   <img src="https://img.shields.io/badge/rendering-local%20only-000000?style=flat-square" alt="local rendering badge">
@@ -14,7 +14,7 @@
 
 `squircle` is a browser-only image corner tool for rounded corners and true squircles. drop one image or a whole batch, tune the corner profile, shadow, and outline, then export transparent-corner pngs without sending files to a server.
 
-[live app](https://squircle-qzfyov1pn-microck-projects.vercel.app) | [github](https://github.com/Microck/squircle)
+[vercel deployment](https://squircle-microck-projects.vercel.app) | [github](https://github.com/Microck/squircle)
 
 <p align="center">
   <video src=".github/assets/squircle-showcase.mp4" controls muted loop playsinline width="100%"></video>
@@ -87,7 +87,9 @@ pnpm build
 
 ## deployment
 
-`squircle` is live on Vercel at [squircle-qzfyov1pn-microck-projects.vercel.app](https://squircle-qzfyov1pn-microck-projects.vercel.app).
+`squircle` is deployed on Vercel at [squircle-microck-projects.vercel.app](https://squircle-microck-projects.vercel.app).
+
+the current Vercel project is protected by Vercel Authentication, so anonymous requests return `401` unless you use a permitted session or a temporary share URL.
 
 ## license
 
