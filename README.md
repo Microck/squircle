@@ -1,13 +1,10 @@
 <p align="center">
-  <img src=".github/assets/squircle-logo.svg" alt="squircle" width="720">
+  <img src=".github/assets/squircle-logo.svg" alt="squircle" width="120">
 </p>
 
 <p align="center">
-  <a href="https://github.com/Microck/squircle"><img src="https://img.shields.io/badge/github-Microck%2Fsquircle-000000?style=flat-square" alt="github badge"></a>
-  <a href="https://squircle-qzfyov1pn-microck-projects.vercel.app"><img src="https://img.shields.io/badge/live-vercel-000000?style=flat-square" alt="live badge"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-mit-000000?style=flat-square" alt="license badge"></a>
   <img src="https://img.shields.io/badge/next.js-16-000000?style=flat-square" alt="next.js badge">
-  <img src="https://img.shields.io/badge/rendering-local%20only-000000?style=flat-square" alt="local rendering badge">
 </p>
 
 ---
