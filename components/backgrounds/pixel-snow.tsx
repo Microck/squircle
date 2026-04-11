@@ -13,6 +13,9 @@ import {
   WebGLRenderer,
 } from "three";
 
+const SNOW_TARGET_FPS = 30;
+const SNOW_FRAME_INTERVAL_MS = 1000 / SNOW_TARGET_FPS;
+
 const vertexShader = `
 void main() {
   gl_Position = vec4(position, 1.0);
@@ -194,6 +197,8 @@ function PixelSnow({
   const containerRef = useRef<HTMLDivElement>(null);
   const animationRef = useRef<number>(0);
   const isVisibleRef = useRef(true);
+  const isPageVisibleRef = useRef(true);
+  const lastRenderTimeRef = useRef(0);
   const rendererRef = useRef<WebGLRenderer | null>(null);
   const materialRef = useRef<ShaderMaterial | null>(null);
   const resizeTimeoutRef = useRef<number | null>(null);
@@ -242,6 +247,19 @@ function PixelSnow({
 
     observer.observe(container);
     return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      isPageVisibleRef.current = !document.hidden;
+    };
+
+    handleVisibilityChange();
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
   }, []);
 
   useEffect(() => {
@@ -307,14 +325,24 @@ function PixelSnow({
     window.addEventListener("resize", handleResize);
 
     const startTime = performance.now();
-    const animate = () => {
+    lastRenderTimeRef.current = 0;
+
+    const animate = (now: number) => {
       animationRef.current = requestAnimationFrame(animate);
-      if (isVisibleRef.current && renderer && material && camera) {
-        material.uniforms.uTime.value = (performance.now() - startTime) * 0.001;
-        renderer.render(scene, camera);
+
+      if (!isVisibleRef.current || !isPageVisibleRef.current || !renderer || !material || !camera) {
+        return;
       }
+
+      if (lastRenderTimeRef.current !== 0 && now - lastRenderTimeRef.current < SNOW_FRAME_INTERVAL_MS) {
+        return;
+      }
+
+      lastRenderTimeRef.current = now;
+      material.uniforms.uTime.value = (now - startTime) * 0.001;
+      renderer.render(scene, camera);
     };
-    animate();
+    animationRef.current = requestAnimationFrame(animate);
 
     return () => {
       cancelAnimationFrame(animationRef.current);

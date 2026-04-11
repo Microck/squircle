@@ -53,6 +53,7 @@ type DragState = {
 };
 
 const HEX_COLOR_RE = /^#?(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
+const CHECKERBOARD_LIGHT = "url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMCIgaGVpZ2h0PSIyMCI+PHJlY3Qgd2lkdGg9IjIwIiBoZWlnaHQ9IjIwIiBmaWxsPSIjZmZmIi8+PHJlY3Qgd2lkdGg9IjEwIiBoZWlnaHQ9IjEwIiBmaWxsPSIjZTBlMGUwIi8+PHJlY3QgeD0iMTAiIHk9IjEwIiB3aWR0aD0iMTAiIGhlaWdodD0iMTAiIGZpbGw9IiNlMGUwZTAiLz48L3N2Zz4=')";
 
 function normalizeHexColor(value: string) {
   const trimmed = value.trim();
@@ -98,6 +99,15 @@ function getExportFileName(stem: string, extension: string, index?: number) {
 
 function getExportArchiveName(count: number) {
   return `squircle-batch-${count}${getExportHostSuffix()}.zip`;
+}
+
+function hexToRgba(hex: string, alpha: number) {
+  if (hex === "transparent") return "transparent";
+  const sanitized = hex.replace("#", "");
+  const red = parseInt(sanitized.length === 3 ? sanitized[0] + sanitized[0] : sanitized.substring(0, 2), 16) || 0;
+  const green = parseInt(sanitized.length === 3 ? sanitized[1] + sanitized[1] : sanitized.substring(2, 4), 16) || 0;
+  const blue = parseInt(sanitized.length === 3 ? sanitized[2] + sanitized[2] : sanitized.substring(4, 6), 16) || 0;
+  return `rgba(${red}, ${green}, ${blue}, ${alpha / 100})`;
 }
 
 function createMediaId() {
@@ -248,6 +258,8 @@ export function SquircleEditor() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const dragStateRef = useRef<DragState | null>(null);
   const mediaItemsRef = useRef<MediaItem[]>([]);
+  const offscreenCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const previewDrawFrameRef = useRef<number | null>(null);
 
   useEffect(() => {
     mediaItemsRef.current = mediaItems;
@@ -255,6 +267,9 @@ export function SquircleEditor() {
 
   useEffect(() => {
     return () => {
+      if (previewDrawFrameRef.current !== null) {
+        cancelAnimationFrame(previewDrawFrameRef.current);
+      }
       mediaItemsRef.current.forEach((item) => URL.revokeObjectURL(item.url));
     };
   }, []);
@@ -271,15 +286,6 @@ export function SquircleEditor() {
     : null;
   const activeCrop = activeItem?.crop ?? DEFAULT_CROP_STATE;
   const canDragActiveCrop = activeCrop.zoom > CROP_ZOOM_MIN;
-
-  const hexToRgba = (hex: string, alpha: number) => {
-    if (hex === "transparent") return "transparent";
-    const sanitized = hex.replace("#", "");
-    const red = parseInt(sanitized.length === 3 ? sanitized[0] + sanitized[0] : sanitized.substring(0, 2), 16) || 0;
-    const green = parseInt(sanitized.length === 3 ? sanitized[1] + sanitized[1] : sanitized.substring(2, 4), 16) || 0;
-    const blue = parseInt(sanitized.length === 3 ? sanitized[2] + sanitized[2] : sanitized.substring(4, 6), 16) || 0;
-    return `rgba(${red}, ${green}, ${blue}, ${alpha / 100})`;
-  };
 
   const drawToCanvas = useCallback((
     canvas: HTMLCanvasElement,
@@ -332,11 +338,13 @@ export function SquircleEditor() {
       shapeContext.closePath();
     };
 
-    const layerCanvas = document.createElement("canvas");
+    const layerCanvas = offscreenCanvasRef.current ?? document.createElement("canvas");
+    offscreenCanvasRef.current = layerCanvas;
     layerCanvas.width = outputWidth;
     layerCanvas.height = outputHeight;
     const layerContext = layerCanvas.getContext("2d");
     if (!layerContext) return;
+    layerContext.clearRect(0, 0, outputWidth, outputHeight);
 
     if (hasOutline) {
       layerContext.save();
@@ -545,7 +553,25 @@ export function SquircleEditor() {
       return;
     }
 
-    drawToCanvas(canvasRef.current, activeSource, activeItem.width, activeItem.height, activeItem.crop);
+    if (previewDrawFrameRef.current !== null) {
+      cancelAnimationFrame(previewDrawFrameRef.current);
+    }
+
+    previewDrawFrameRef.current = requestAnimationFrame(() => {
+      if (!canvasRef.current) {
+        return;
+      }
+
+      drawToCanvas(canvasRef.current, activeSource, activeItem.width, activeItem.height, activeItem.crop);
+      previewDrawFrameRef.current = null;
+    });
+
+    return () => {
+      if (previewDrawFrameRef.current !== null) {
+        cancelAnimationFrame(previewDrawFrameRef.current);
+        previewDrawFrameRef.current = null;
+      }
+    };
   }, [activeItem, activeSource, drawToCanvas]);
 
   const handleDownload = useCallback(async () => {
@@ -698,8 +724,6 @@ export function SquircleEditor() {
     );
   }
 
-  const checkerboardLight = "url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMCIgaGVpZ2h0PSIyMCI+PHJlY3Qgd2lkdGg9IjIwIiBoZWlnaHQ9IjIwIiBmaWxsPSIjZmZmIi8+PHJlY3Qgd2lkdGg9IjEwIiBoZWlnaHQ9IjEwIiBmaWxsPSIjZTBlMGUwIi8+PHJlY3QgeD0iMTAiIHk9IjEwIiB3aWR0aD0iMTAiIGhlaWdodD0iMTAiIGZpbGw9IiNlMGUwZTAiLz48L3N2Zz4=')";
-
   return (
     <div className="w-full max-w-2xl mx-auto flex flex-col items-center gap-8">
       <div className="w-full flex items-center justify-between gap-4">
@@ -748,7 +772,7 @@ export function SquircleEditor() {
 
       <div
         className={`w-full rounded-3xl border border-border p-6 shadow-sm flex items-center justify-center overflow-hidden aspect-square sm:aspect-video relative transition-colors ${previewBg === "dark" ? "preview-surface" : "bg-white"}`}
-        style={previewBg === "light" ? { backgroundImage: checkerboardLight } : undefined}
+        style={previewBg === "light" ? { backgroundImage: CHECKERBOARD_LIGHT } : undefined}
       >
         <canvas
           ref={canvasRef}
