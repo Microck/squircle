@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
+import { Progress, ProgressIndicator, ProgressLabel, ProgressTrack } from "@/components/ui/progress";
+import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
@@ -50,6 +52,12 @@ type DragState = {
   startX: number;
   startY: number;
   startCrop: CropState;
+};
+
+type UploadProgressState = {
+  total: number;
+  completed: number;
+  currentFileName: string;
 };
 
 const HEX_COLOR_RE = /^#?(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
@@ -151,6 +159,21 @@ function downloadBlob(blob: Blob, fileName: string) {
   URL.revokeObjectURL(url);
 }
 
+function waitForNextPaint() {
+  return new Promise<void>((resolve) => {
+    requestAnimationFrame(() => resolve());
+  });
+}
+
+function getUploadProgressValue(uploadProgress: UploadProgressState | null) {
+  if (!uploadProgress) {
+    return 0;
+  }
+
+  const inFlightOffset = uploadProgress.completed < uploadProgress.total ? 0.35 : 0;
+  return Math.min(100, Math.round(((uploadProgress.completed + inFlightOffset) / uploadProgress.total) * 100));
+}
+
 type ColorFieldProps = {
   label: string;
   value: string;
@@ -237,6 +260,8 @@ export function SquircleEditor() {
   const [activeMediaId, setActiveMediaId] = useState<string | null>(null);
   const [activeGifFrameIndex, setActiveGifFrameIndex] = useState(0);
   const [isDraggingCrop, setIsDraggingCrop] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<UploadProgressState | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   const [shape, setShape] = useState<"round" | "squircle">("squircle");
   const [radius, setRadius] = useState<number>(15);
@@ -286,6 +311,7 @@ export function SquircleEditor() {
     : null;
   const activeCrop = activeItem?.crop ?? DEFAULT_CROP_STATE;
   const canDragActiveCrop = activeCrop.zoom > CROP_ZOOM_MIN;
+  const uploadProgressValue = getUploadProgressValue(uploadProgress);
 
   const drawToCanvas = useCallback((
     canvas: HTMLCanvasElement,
@@ -454,30 +480,70 @@ export function SquircleEditor() {
   }, []);
 
   const processFiles = useCallback((files: File[]) => {
+    if (uploadProgress) {
+      return;
+    }
+
     const validFiles = files.filter((file) => file.type.startsWith("image/"));
 
     if (validFiles.length === 0) {
       return;
     }
 
-    void Promise.allSettled(validFiles.map((file) => createMediaItem(file))).then((results) => {
-      const nextItems = results.flatMap((result) => {
-        if (result.status === "fulfilled") {
-          return [result.value];
+    setUploadError(null);
+    setUploadProgress({
+      total: validFiles.length,
+      completed: 0,
+      currentFileName: validFiles[0]?.name ?? "image",
+    });
+
+    void (async () => {
+      const nextItems: MediaItem[] = [];
+      let failedCount = 0;
+      let lastFailedFileName: string | null = null;
+
+      for (let index = 0; index < validFiles.length; index += 1) {
+        const file = validFiles[index];
+
+        setUploadProgress({
+          total: validFiles.length,
+          completed: index,
+          currentFileName: file.name,
+        });
+        await waitForNextPaint();
+
+        try {
+          nextItems.push(await createMediaItem(file));
+        } catch (error) {
+          failedCount += 1;
+          lastFailedFileName = file.name;
+          console.error(error);
         }
 
-        console.error(result.reason);
-        return [];
-      });
-
-      if (nextItems.length === 0) {
-        return;
+        setUploadProgress({
+          total: validFiles.length,
+          completed: index + 1,
+          currentFileName: file.name,
+        });
+        await waitForNextPaint();
       }
 
-      setMediaItems((currentItems) => [...currentItems, ...nextItems]);
-      setActiveMediaId((currentActiveMediaId) => currentActiveMediaId ?? nextItems[0].id);
-    });
-  }, [createMediaItem]);
+      if (nextItems.length > 0) {
+        setMediaItems((currentItems) => [...currentItems, ...nextItems]);
+        setActiveMediaId((currentActiveMediaId) => currentActiveMediaId ?? nextItems[0].id);
+      }
+
+      if (failedCount > 0) {
+        setUploadError(
+          failedCount === 1 && lastFailedFileName
+            ? `Couldn't process ${lastFailedFileName}. Try a smaller or shorter GIF.`
+            : `Couldn't process ${failedCount} files. Try smaller images or GIFs.`,
+        );
+      }
+
+      setUploadProgress(null);
+    })();
+  }, [createMediaItem, uploadProgress]);
 
   const handleDrop = useCallback((event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault();
@@ -701,17 +767,52 @@ export function SquircleEditor() {
     setIsDraggingCrop(false);
   }, []);
 
+  const uploadProgressPanel = uploadProgress ? (
+    <div className="w-full rounded-2xl border border-border bg-card p-4 shadow-sm">
+        <Progress aria-label="Upload progress" className="gap-3" max={100} value={uploadProgressValue}>
+        <div className="flex items-center justify-between gap-4">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <Spinner className="h-4 w-4 text-primary" />
+              <ProgressLabel className="text-sm font-semibold text-foreground">Processing upload</ProgressLabel>
+            </div>
+            <p className="truncate text-xs text-muted-foreground">{uploadProgress.currentFileName}</p>
+          </div>
+          <span className="shrink-0 text-xs text-muted-foreground">{uploadProgressValue}%</span>
+        </div>
+        <ProgressTrack>
+          <ProgressIndicator />
+        </ProgressTrack>
+      </Progress>
+    </div>
+  ) : null;
+
   if (mediaItems.length === 0) {
     return (
       <div
-        className="w-full max-w-2xl mx-auto aspect-video rounded-2xl border border-dashed border-border bg-card text-card-foreground flex flex-col items-center justify-center cursor-pointer hover:bg-muted/50 transition-colors"
-        onClick={() => document.getElementById("file-upload")?.click()}
+        className={`w-full max-w-2xl mx-auto aspect-video rounded-2xl border border-dashed border-border bg-card text-card-foreground flex flex-col items-center justify-center transition-colors ${uploadProgress ? "cursor-progress" : "cursor-pointer hover:bg-muted/50"}`}
+        onClick={() => {
+          if (!uploadProgress) {
+            document.getElementById("file-upload")?.click();
+          }
+        }}
         onDragOver={handleDragOver}
         onDrop={handleDrop}
       >
-        <UploadCloud className="w-10 h-10 text-muted-foreground mb-4" />
-        <h3 className="text-lg font-medium">Drop images or GIFs here</h3>
-        <p className="text-sm text-muted-foreground mt-1">or click to select multiple files</p>
+        {uploadProgress ? (
+          <div className="w-full max-w-md px-6">
+            {uploadProgressPanel}
+          </div>
+        ) : (
+          <>
+            <UploadCloud className="w-10 h-10 text-muted-foreground mb-4" />
+            <h3 className="text-lg font-medium">Drop images or GIFs here</h3>
+            <p className="text-sm text-muted-foreground mt-1">or click to select multiple files</p>
+          </>
+        )}
+        {uploadError ? (
+          <p className="mt-4 px-6 text-center text-sm text-destructive">{uploadError}</p>
+        ) : null}
         <input
           id="file-upload"
           accept="image/*"
@@ -769,6 +870,9 @@ export function SquircleEditor() {
           Clear All
         </Button>
       </div>
+
+      {uploadProgressPanel}
+      {uploadError ? <p className="w-full px-2 text-sm text-destructive">{uploadError}</p> : null}
 
       <div
         className={`w-full rounded-3xl border border-border p-6 shadow-sm flex items-center justify-center overflow-hidden aspect-square sm:aspect-video relative transition-colors ${previewBg === "dark" ? "preview-surface" : "bg-white"}`}
