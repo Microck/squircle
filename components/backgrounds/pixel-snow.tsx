@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef } from "react";
+import { logClientError } from "@/lib/client-log";
 import {
   Color,
   Mesh,
@@ -318,7 +319,7 @@ function PixelSnow({
       geometry = new PlaneGeometry(2, 2);
       scene.add(new Mesh(geometry, material));
     } catch (error) {
-      console.error("PixelSnow init failed:", error);
+      logClientError("PixelSnow init failed", error);
       return;
     }
 

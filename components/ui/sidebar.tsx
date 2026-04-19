@@ -110,6 +110,7 @@ export function SidebarProvider({
         expires: Date.now() + SIDEBAR_COOKIE_MAX_AGE * 1000,
         name: SIDEBAR_COOKIE_NAME,
         path: "/",
+        sameSite: "strict",
         value: String(openState),
       });
     },

@@ -1,11 +1,11 @@
 ## Basics
 
 - [x] Favicon and app icons (`app/favicon.ico`, `app/icon.svg`, `app/apple-icon.png`) verified in source
-- [ ] Web app manifest
+- [x] Web app manifest
 - [x] Theme color meta tag
-- [ ] robots.txt
+- [x] robots.txt
 - [ ] sitemap.xml
-- [ ] .well-known/security.txt
+- [x] .well-known/security.txt
 - [x] Custom production domain configured in Vercel (`squircle.micr.dev`)
 - [x] Production custom domain responds over HTTPS
 - [ ] Custom-domain DNS note verified against the current Vercel DNS setup
@@ -44,12 +44,12 @@
 
 - [x] HTTPS enforced (HTTP redirects to HTTPS in production)
 - [x] HSTS header
-- [ ] Content Security Policy
-- [ ] X-Frame-Options or `frame-ancestors`
-- [ ] X-Content-Type-Options
-- [ ] Referrer-Policy
-- [ ] Permissions-Policy
-- [ ] Input validation and sanitization audit
+- [x] Content Security Policy
+- [x] X-Frame-Options or `frame-ancestors`
+- [x] X-Content-Type-Options
+- [x] Referrer-Policy
+- [x] Permissions-Policy
+- [x] Input validation and sanitization audit
 
 ## UI/UX
 
@@ -66,7 +66,7 @@
 
 ## Development & Deployment
 
-- [ ] CI/CD pipeline
+- [x] CI/CD pipeline
 - [x] Automated tests
 - [x] Linting
 - [x] Build pipeline

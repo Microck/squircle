@@ -23,6 +23,7 @@ import {
   getCropStateAfterDrag,
   type CropState,
 } from "@/lib/crop";
+import { logClientError } from "@/lib/client-log";
 import { applyExportDeband } from "@/lib/export-deband";
 import { decodeGifFile, encodeGifFrames, type DecodedGifFrame } from "@/lib/gif";
 
@@ -62,6 +63,10 @@ type UploadProgressState = {
 
 const HEX_COLOR_RE = /^#?(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
 const CHECKERBOARD_LIGHT = "url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMCIgaGVpZ2h0PSIyMCI+PHJlY3Qgd2lkdGg9IjIwIiBoZWlnaHQ9IjIwIiBmaWxsPSIjZmZmIi8+PHJlY3Qgd2lkdGg9IjEwIiBoZWlnaHQ9IjEwIiBmaWxsPSIjZTBlMGUwIi8+PHJlY3QgeD0iMTAiIHk9IjEwIiB3aWR0aD0iMTAiIGhlaWdodD0iMTAiIGZpbGw9IiNlMGUwZTAiLz48L3N2Zz4=')";
+const MAX_UPLOAD_FILES = 20;
+const MAX_UPLOAD_FILE_BYTES = 50 * 1024 * 1024;
+const MAX_IMAGE_DIMENSION = 8192;
+const MAX_ERROR_FILE_NAME_LENGTH = 64;
 
 function normalizeHexColor(value: string) {
   const trimmed = value.trim();
@@ -119,18 +124,42 @@ function hexToRgba(hex: string, alpha: number) {
 }
 
 function createMediaId() {
-  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
-    return crypto.randomUUID();
+  return crypto.randomUUID();
+}
+
+function sanitizeFileName(name: string) {
+  const sanitized = name.replace(/[<>\u0000-\u001F\u007F]/g, "").trim();
+  return (sanitized || "file").slice(0, MAX_ERROR_FILE_NAME_LENGTH);
+}
+
+function getFileErrorMessage(error: unknown) {
+  if (!(error instanceof Error)) {
+    return "Couldn't read that file.";
   }
 
-  return Math.random().toString(36).slice(2);
+  const message = error.message.trim();
+  if (!message) {
+    return "Couldn't read that file.";
+  }
+
+  return message.replace(/[<>\u0000-\u001F\u007F]/g, "").slice(0, 140);
+}
+
+function assertSupportedImageDimensions(width: number, height: number) {
+  if (width < 1 || height < 1) {
+    throw new Error("Image dimensions are invalid.");
+  }
+
+  if (width > MAX_IMAGE_DIMENSION || height > MAX_IMAGE_DIMENSION) {
+    throw new Error(`Images must stay within ${MAX_IMAGE_DIMENSION}x${MAX_IMAGE_DIMENSION}.`);
+  }
 }
 
 function loadImage(url: string) {
   return new Promise<HTMLImageElement>((resolve, reject) => {
     const image = new Image();
     image.onload = () => resolve(image);
-    image.onerror = () => reject(new Error(`Failed to load image: ${url}`));
+    image.onerror = () => reject(new Error("Couldn't decode that image."));
     image.src = url;
   });
 }
@@ -156,7 +185,7 @@ function downloadBlob(blob: Blob, fileName: string) {
   document.body.appendChild(anchor);
   anchor.click();
   document.body.removeChild(anchor);
-  URL.revokeObjectURL(url);
+  window.setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
 function waitForNextPaint() {
@@ -186,7 +215,6 @@ function ColorField({ label, value, onChange }: ColorFieldProps) {
   const isDraftValid = draft.trim() === "" || HEX_COLOR_RE.test(draft.trim());
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setDraft(normalizedValue.toUpperCase());
   }, [normalizedValue]);
 
@@ -463,14 +491,17 @@ export function SquircleEditor() {
       }
 
       const image = await loadImage(url);
+      const width = image.naturalWidth || image.width;
+      const height = image.naturalHeight || image.height;
+      assertSupportedImageDimensions(width, height);
 
       return {
         id: createMediaId(),
         kind: "image",
         file,
         url,
-        width: image.naturalWidth || image.width,
-        height: image.naturalHeight || image.height,
+        width,
+        height,
         crop: DEFAULT_CROP_STATE,
         source: image,
       };
@@ -491,6 +522,19 @@ export function SquircleEditor() {
       return;
     }
 
+    if (validFiles.length > MAX_UPLOAD_FILES) {
+      setUploadError(`You can import up to ${MAX_UPLOAD_FILES} files at once.`);
+      return;
+    }
+
+    const oversizedFile = validFiles.find((file) => file.size > MAX_UPLOAD_FILE_BYTES);
+    if (oversizedFile) {
+      setUploadError(
+        `${sanitizeFileName(oversizedFile.name)} is larger than ${Math.round(MAX_UPLOAD_FILE_BYTES / (1024 * 1024))}MB.`,
+      );
+      return;
+    }
+
     setUploadError(null);
     setUploadProgress({
       total: validFiles.length,
@@ -502,6 +546,7 @@ export function SquircleEditor() {
       const nextItems: MediaItem[] = [];
       let failedCount = 0;
       let lastFailedFileName: string | null = null;
+      let lastFailedReason: string | null = null;
 
       for (let index = 0; index < validFiles.length; index += 1) {
         const file = validFiles[index];
@@ -517,8 +562,9 @@ export function SquircleEditor() {
           nextItems.push(await createMediaItem(file));
         } catch (error) {
           failedCount += 1;
-          lastFailedFileName = file.name;
-          console.error(error);
+          lastFailedFileName = sanitizeFileName(file.name);
+          lastFailedReason = getFileErrorMessage(error);
+          logClientError("Failed to process uploaded file", error);
         }
 
         setUploadProgress({
@@ -536,8 +582,8 @@ export function SquircleEditor() {
 
       if (failedCount > 0) {
         setUploadError(
-          failedCount === 1 && lastFailedFileName
-            ? `Couldn't process ${lastFailedFileName}. Try a smaller or shorter GIF.`
+          failedCount === 1 && lastFailedFileName && lastFailedReason
+            ? `${lastFailedFileName}: ${lastFailedReason}`
             : `Couldn't process ${failedCount} files. Try smaller images or GIFs.`,
         );
       }
@@ -599,7 +645,6 @@ export function SquircleEditor() {
   }, [renderItemToCanvas]);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setActiveGifFrameIndex(0);
   }, [activeMediaId]);
 
