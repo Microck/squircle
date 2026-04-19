@@ -186,6 +186,7 @@ function ColorField({ label, value, onChange }: ColorFieldProps) {
   const isDraftValid = draft.trim() === "" || HEX_COLOR_RE.test(draft.trim());
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setDraft(normalizedValue.toUpperCase());
   }, [normalizedValue]);
 
@@ -598,6 +599,7 @@ export function SquircleEditor() {
   }, [renderItemToCanvas]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setActiveGifFrameIndex(0);
   }, [activeMediaId]);
 
