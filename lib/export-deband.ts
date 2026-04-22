@@ -1,20 +1,38 @@
+/** Luminance threshold below which debanding is applied. */
 const DARK_LUMA_THRESHOLD = 96;
+
+/** Maximum dithering delta applied to dark pixels. */
 const MAX_DITHER_DELTA = 4;
 
+/** Clamp a value to the valid byte range [0, 255]. */
 function clampToByte(value: number) {
   return Math.max(0, Math.min(255, value));
 }
 
+/** Compute perceived luminance from RGB values using BT.709 coefficients. */
 function getLuma(red: number, green: number, blue: number) {
   return red * 0.2126 + green * 0.7152 + blue * 0.0722;
 }
 
+/**
+ * Generate a deterministic noise value for a given pixel coordinate.
+ *
+ * Uses integer hash multiplication for fast, repeatable pseudo-random output
+ * in the range [0, 1].
+ */
 function getDeterministicNoise(x: number, y: number) {
   let seed = Math.imul(x + 1, 374761393) ^ Math.imul(y + 1, 668265263);
   seed = Math.imul(seed ^ (seed >>> 13), 1274126177);
   return ((seed ^ (seed >>> 16)) >>> 0) / 0xffffffff;
 }
 
+/**
+ * Apply debanding dithering to dark regions of an image in-place.
+ *
+ * Adds deterministic noise to pixels below a luminance threshold to reduce
+ * visible color banding artifacts in exported images. Skips fully transparent
+ * pixels and bright pixels above the threshold.
+ */
 export function applyExportDeband(
   pixels: Uint8ClampedArray,
   width: number,
