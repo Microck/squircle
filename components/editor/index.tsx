@@ -27,47 +27,78 @@ import { logClientError } from "@/lib/client-log";
 import { applyExportDeband } from "@/lib/export-deband";
 import { decodeGifFile, encodeGifFrames, type DecodedGifFrame } from "@/lib/gif";
 
+/** Base fields shared by all media items (images and GIFs). */
 type BaseMediaItem = {
+  /** Unique identifier for this media item. */
   id: string;
+  /** Original uploaded file reference. */
   file: File;
+  /** Object URL for the uploaded file (revoked on removal). */
   url: string;
+  /** Natural width of the source media in pixels. */
   width: number;
+  /** Natural height of the source media in pixels. */
   height: number;
+  /** Current crop/zoom state applied to this item. */
   crop: CropState;
 };
 
+/** A static image media item backed by an HTMLImageElement. */
 type ImageItem = BaseMediaItem & {
   kind: "image";
+  /** The decoded HTML image element used as the rendering source. */
   source: HTMLImageElement;
 };
 
+/** An animated GIF media item with pre-decoded frame canvases. */
 type GifItem = BaseMediaItem & {
   kind: "gif";
+  /** Pre-decoded GIF frames with individual canvas elements. */
   frames: DecodedGifFrame[];
 };
 
+/** Union type representing either an image or GIF media item. */
 type MediaItem = ImageItem | GifItem;
 
+/** State tracked during an active pointer drag for crop panning. */
 type DragState = {
+  /** Captured pointer ID. */
   pointerId: number;
+  /** Pointer position at drag start. */
   startX: number;
+  /** Pointer position at drag start. */
   startY: number;
+  /** Crop state at the beginning of the drag. */
   startCrop: CropState;
 };
 
+/** Progress state for multi-file upload processing. */
 type UploadProgressState = {
+  /** Total number of files being processed. */
   total: number;
+  /** Number of files completed so far. */
   completed: number;
+  /** Name of the file currently being processed. */
   currentFileName: string;
 };
 
+/** Regex pattern for validating 3-digit or 6-digit hex color strings. */
 const HEX_COLOR_RE = /^#?(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
+/** Base64-encoded SVG for a light checkerboard background pattern. */
 const CHECKERBOARD_LIGHT = "url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMCIgaGVpZ2h0PSIyMCI+PHJlY3Qgd2lkdGg9IjIwIiBoZWlnaHQ9IjIwIiBmaWxsPSIjZmZmIi8+PHJlY3Qgd2lkdGg9IjEwIiBoZWlnaHQ9IjEwIiBmaWxsPSIjZTBlMGUwIi8+PHJlY3QgeD0iMTAiIHk9IjEwIiB3aWR0aD0iMTAiIGhlaWdodD0iMTAiIGZpbGw9IiNlMGUwZTAiLz48L3N2Zz4=')";
+/** Maximum number of files that can be imported in a single batch. */
 const MAX_UPLOAD_FILES = 20;
+/** Maximum size of a single uploaded file in bytes (50 MB). */
 const MAX_UPLOAD_FILE_BYTES = 50 * 1024 * 1024;
+/** Maximum allowed image dimension in pixels. */
 const MAX_IMAGE_DIMENSION = 8192;
+/** Maximum length for sanitized error file names. */
 const MAX_ERROR_FILE_NAME_LENGTH = 64;
 
+/**
+ * Normalize a hex color string to lowercase 6-digit format with a `#` prefix.
+ * Returns `null` if the input is not a valid hex color.
+ */
 function normalizeHexColor(value: string) {
   const trimmed = value.trim();
   if (!HEX_COLOR_RE.test(trimmed)) {
@@ -82,14 +113,20 @@ function normalizeHexColor(value: string) {
   return prefixed.toLowerCase();
 }
 
+/** Check if a file is a GIF based on MIME type or file extension. */
 function isGifFile(file: File) {
   return file.type === "image/gif" || file.name.toLowerCase().endsWith(".gif");
 }
 
+/** Extract the file name without extension. */
 function getFileStem(name: string) {
   return name.replace(/\.[^/.]+$/, "");
 }
 
+/**
+ * Generate a host-derived suffix for export file names.
+ * Used to distinguish exports from different Squircle deployments.
+ */
 function getExportHostSuffix() {
   if (typeof window === "undefined") {
     return "";
@@ -105,15 +142,18 @@ function getExportHostSuffix() {
   return sanitizedHostname ? `_${sanitizedHostname}` : "";
 }
 
+/** Build an export file name with optional batch index and host suffix. */
 function getExportFileName(stem: string, extension: string, index?: number) {
   const prefix = typeof index === "number" ? `export-${index + 1}-${stem}` : `export-${stem}`;
   return `${prefix}${getExportHostSuffix()}.${extension}`;
 }
 
+/** Build the ZIP archive file name for a batch export. */
 function getExportArchiveName(count: number) {
   return `squircle-batch-${count}${getExportHostSuffix()}.zip`;
 }
 
+/** Convert a hex color string and opacity percentage to an `rgba()` CSS value. */
 function hexToRgba(hex: string, alpha: number) {
   if (hex === "transparent") return "transparent";
   const sanitized = hex.replace("#", "");
@@ -203,9 +243,13 @@ function getUploadProgressValue(uploadProgress: UploadProgressState | null) {
   return Math.min(100, Math.round(((uploadProgress.completed + inFlightOffset) / uploadProgress.total) * 100));
 }
 
+/** Props for the ColorField color picker + hex input component. */
 type ColorFieldProps = {
+  /** Display label shown next to the color swatch. */
   label: string;
+  /** Current hex color value (with `#` prefix). */
   value: string;
+  /** Callback fired when the user commits a new color value. */
   onChange: (value: string) => void;
 };
 
@@ -284,6 +328,14 @@ function ColorField({ label, value, onChange }: ColorFieldProps) {
   );
 }
 
+/**
+ * Main Squircle editor component.
+ *
+ * Provides a browser-only image editor that lets users import images and GIFs,
+ * apply squircle or rounded corner shapes with configurable radius, shadow,
+ * outline, and crop/zoom, then export as PNG or animated GIF. All processing
+ * happens client-side with no server upload required.
+ */
 export function SquircleEditor() {
   const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
   const [activeMediaId, setActiveMediaId] = useState<string | null>(null);

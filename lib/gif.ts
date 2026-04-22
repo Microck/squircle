@@ -1,26 +1,40 @@
 import { applyPalette, GIFEncoder, quantize } from "gifenc";
 import { decompressFrames, parseGIF, type ParsedFrame } from "gifuct-js";
 
+/** Subset of ParsedFrame fields needed for GIF composition. */
 export type GifPatchFrame = Pick<ParsedFrame, "delay" | "disposalType" | "dims" | "patch">;
 
+/** A fully composed frame with raw pixel data and timing. */
 export type ComposedGifFrame = {
+  /** Frame delay in hundredths of a second (centiseconds). */
   delay: number;
+  /** Raw RGBA pixel data. */
   pixels: Uint8ClampedArray;
 };
 
+/** A decoded GIF frame rendered to an HTML canvas. */
 export type DecodedGifFrame = {
+  /** Frame delay in hundredths of a second (centiseconds). */
   delay: number;
+  /** Canvas element containing the rendered frame. */
   canvas: HTMLCanvasElement;
 };
 
+/** Result of decoding a GIF file into individual frames. */
 export type DecodedGif = {
+  /** GIF width in pixels. */
   width: number;
+  /** GIF height in pixels. */
   height: number;
+  /** Ordered list of decoded frames. */
   frames: DecodedGifFrame[];
 };
 
+/** Frame data ready for GIF encoding, with raw ImageData. */
 export type GifImageDataFrame = {
+  /** Frame delay in hundredths of a second (centiseconds). */
   delay: number;
+  /** ImageData containing raw pixels and dimensions. */
   imageData: {
     data: Uint8ClampedArray | Uint8Array;
     width: number;
@@ -28,9 +42,16 @@ export type GifImageDataFrame = {
   };
 };
 
+/** Maximum allowed GIF dimension in pixels. */
 export const MAX_GIF_DIMENSION = 4096;
+
+/** Maximum allowed number of frames in a GIF animation. */
 export const MAX_GIF_FRAME_COUNT = 300;
 
+/**
+ * Validate that GIF dimensions are finite and within allowed limits.
+ * @throws If dimensions are invalid or exceed {@link MAX_GIF_DIMENSION}.
+ */
 function assertValidGifSize(width: number, height: number) {
   if (!Number.isFinite(width) || !Number.isFinite(height) || width < 1 || height < 1) {
     throw new Error("GIF dimensions are invalid.");
@@ -41,6 +62,12 @@ function assertValidGifSize(width: number, height: number) {
   }
 }
 
+/**
+ * Apply a single patch frame onto a pixel buffer in-place.
+ *
+ * Copies non-transparent pixels from the frame patch into the corresponding
+ * position in the destination buffer, respecting frame offset and bounds.
+ */
 function applyPatch(
   pixels: Uint8ClampedArray,
   width: number,
@@ -78,6 +105,11 @@ function applyPatch(
   }
 }
 
+/**
+ * Clear the patch area of a frame from the pixel buffer in-place.
+ *
+ * Sets all pixels in the frame's patch region to fully transparent (0,0,0,0).
+ */
 function clearPatchArea(
   pixels: Uint8ClampedArray,
   width: number,
@@ -108,6 +140,12 @@ function clearPatchArea(
   }
 }
 
+/**
+ * Compose GIF patch frames into full pixel frames.
+ *
+ * Applies each frame's disposal method (none, restore-to-background, or
+ * restore-to-previous) to produce a sequence of fully resolved pixel buffers.
+ */
 export function composeGifFrames(
   width: number,
   height: number,
@@ -136,6 +174,14 @@ export function composeGifFrames(
   });
 }
 
+/**
+ * Decode a GIF ArrayBuffer into composed frames with raw pixel data.
+ *
+ * Parses the binary GIF, decompresses frames, validates size and frame count
+ * limits, and composes the patch frames into full pixel buffers.
+ *
+ * @throws If dimensions exceed {@link MAX_GIF_DIMENSION} or frame count exceeds {@link MAX_GIF_FRAME_COUNT}.
+ */
 export function decodeGifArrayBuffer(arrayBuffer: ArrayBuffer) {
   const parsedGif = parseGIF(arrayBuffer);
   assertValidGifSize(parsedGif.lsd.width, parsedGif.lsd.height);
@@ -152,6 +198,11 @@ export function decodeGifArrayBuffer(arrayBuffer: ArrayBuffer) {
   };
 }
 
+/**
+ * Create an HTML canvas element from raw pixel data.
+ *
+ * @throws If 2D canvas context cannot be obtained.
+ */
 function createCanvasFromPixels(
   width: number,
   height: number,
@@ -170,6 +221,12 @@ function createCanvasFromPixels(
   return canvas;
 }
 
+/**
+ * Decode a GIF file into an object with canvas-rendered frames.
+ *
+ * Reads the file as an ArrayBuffer, decodes the GIF, and creates an HTML
+ * canvas element for each frame containing the rendered pixels.
+ */
 export async function decodeGifFile(file: File): Promise<DecodedGif> {
   const { width, height, frames } = decodeGifArrayBuffer(await file.arrayBuffer());
 
@@ -183,6 +240,13 @@ export async function decodeGifFile(file: File): Promise<DecodedGif> {
   };
 }
 
+/**
+ * Encode a sequence of image data frames into a GIF Blob.
+ *
+ * Quantizes each frame to a 256-color palette with RGBA4444 format, finds
+ * transparent color indices, and enforces a minimum 20cs frame delay.
+ * The first frame sets the GIF loop count to infinite.
+ */
 export function encodeGifFrames(
   width: number,
   height: number,
