@@ -19,6 +19,11 @@ drop one image, animated gif, or a whole batch, tune the corner profile, crop, s
 
 most "round my image corners" tools online either dont work, mess up the image quality or are missing features i would like to have. `squircle` keeps the work local, gives you a true squircle mode, and lets you dial the final presentation details before export instead of fixing them later in another editor.
 
+## requirements
+
+- node.js 22+
+- pnpm
+
 ## quickstart
 
 ```bash
@@ -59,9 +64,19 @@ pnpm dev --hostname 0.0.0.0 --port 3004
 - metadata is not preserved during export
 - the output keeps the rendered source dimensions after the chosen crop, corner, shadow, and outline settings are applied
 
-## local development
+## tech stack
 
-`squircle` is a next.js app-router app with react 19, tailwind css v4, base ui primitives, `three` for the pixel-snow background, and `jszip` for batch export packaging.
+| layer | tool |
+|-------|------|
+| framework | next.js 16 (app router) |
+| ui | react 19, tailwind css v4, base ui, radix ui, lucide icons |
+| 3d background | three.js |
+| gif handling | gifenc, gifuct-js |
+| batch export | jszip |
+| testing | vitest, testing library |
+| linting | eslint (next config) |
+
+## local development
 
 use the normal app loop during development:
 
@@ -76,6 +91,17 @@ pnpm build
 pnpm start
 ```
 
+## deploy
+
+the app deploys to vercel like any next.js project. import the repository in the vercel dashboard and the default build settings will work out of the box.
+
+for self-hosting, the production build outputs a standalone next.js server:
+
+```bash
+pnpm build
+pnpm start
+```
+
 ## testing
 
 ```bash
@@ -83,7 +109,6 @@ pnpm test
 pnpm lint
 pnpm build
 ```
-
 
 ## license
 
