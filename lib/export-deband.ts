@@ -15,6 +15,14 @@ function getDeterministicNoise(x: number, y: number) {
   return ((seed ^ (seed >>> 16)) >>> 0) / 0xffffffff;
 }
 
+/**
+ * Applies debanding (ordered dithering) to reduce color banding in dark areas.
+ * Adds deterministic noise to dark pixels to smooth gradients.
+ * Modifies the pixels array in place.
+ * @param pixels - RGBA pixel data (modified in place)
+ * @param width - Image width in pixels
+ * @param height - Image height in pixels
+ */
 export function applyExportDeband(
   pixels: Uint8ClampedArray,
   width: number,

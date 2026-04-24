@@ -1,24 +1,52 @@
 import { applyPalette, GIFEncoder, quantize } from "gifenc";
 import { decompressFrames, parseGIF, type ParsedFrame } from "gifuct-js";
 
+/**
+ * A subset of a parsed GIF frame containing patch data.
+ * @property delay - Frame delay in centiseconds
+ * @property disposalType - How the frame should be disposed after display
+ * @property dims - Dimensions and position of the frame patch
+ * @property patch - Raw pixel data for the patch area
+ */
 export type GifPatchFrame = Pick<ParsedFrame, "delay" | "disposalType" | "dims" | "patch">;
 
+/**
+ * A composed GIF frame with pixels ready for rendering.
+ * @property delay - Frame delay in centiseconds
+ * @property pixels - Full frame pixel data (RGBA)
+ */
 export type ComposedGifFrame = {
   delay: number;
   pixels: Uint8ClampedArray;
 };
 
+/**
+ * A decoded GIF frame with a canvas for rendering.
+ * @property delay - Frame delay in centiseconds
+ * @property canvas - Canvas element with the frame rendered
+ */
 export type DecodedGifFrame = {
   delay: number;
   canvas: HTMLCanvasElement;
 };
 
+/**
+ * A fully decoded GIF with all frames ready.
+ * @property width - GIF width in pixels
+ * @property height - GIF height in pixels
+ * @property frames - Array of decoded frames
+ */
 export type DecodedGif = {
   width: number;
   height: number;
   frames: DecodedGifFrame[];
 };
 
+/**
+ * Frame data in ImageData format for encoding.
+ * @property delay - Frame delay in centiseconds
+ * @property imageData - ImageData object with pixel data
+ */
 export type GifImageDataFrame = {
   delay: number;
   imageData: {
@@ -28,7 +56,9 @@ export type GifImageDataFrame = {
   };
 };
 
+/** Maximum allowed dimension for GIF output (4096x4096). */
 export const MAX_GIF_DIMENSION = 4096;
+/** Maximum allowed frame count for GIF output. */
 export const MAX_GIF_FRAME_COUNT = 300;
 
 function assertValidGifSize(width: number, height: number) {
@@ -108,6 +138,14 @@ function clearPatchArea(
   }
 }
 
+/**
+ * Composes raw GIF patch frames into full frame pixels.
+ * Handles disposal types to properly accumulate or clear frame data.
+ * @param width - Frame width in pixels
+ * @param height - Frame height in pixels
+ * @param frames - Array of patch frames to compose
+ * @returns Array of composed frames with full pixel data
+ */
 export function composeGifFrames(
   width: number,
   height: number,
@@ -136,6 +174,13 @@ export function composeGifFrames(
   });
 }
 
+/**
+ * Decodes a GIF from an ArrayBuffer.
+ * Parses the GIF structure and composes all frames.
+ * @param arrayBuffer - Raw GIF file data
+ * @returns Decoded GIF with dimensions and composed frames
+ * @throws Error if GIF dimensions exceed MAX_GIF_DIMENSION or frame count exceeds MAX_GIF_FRAME_COUNT
+ */
 export function decodeGifArrayBuffer(arrayBuffer: ArrayBuffer) {
   const parsedGif = parseGIF(arrayBuffer);
   assertValidGifSize(parsedGif.lsd.width, parsedGif.lsd.height);
@@ -170,6 +215,12 @@ function createCanvasFromPixels(
   return canvas;
 }
 
+/**
+ * Decodes a GIF file and returns frames as canvas elements.
+ * Useful for preview and rendering the GIF in the browser.
+ * @param file - The GIF file to decode
+ * @returns Promise resolving to decoded GIF with canvas frames
+ */
 export async function decodeGifFile(file: File): Promise<DecodedGif> {
   const { width, height, frames } = decodeGifArrayBuffer(await file.arrayBuffer());
 
@@ -183,6 +234,14 @@ export async function decodeGifFile(file: File): Promise<DecodedGif> {
   };
 }
 
+/**
+ * Encodes frames into a GIF blob for export.
+ * Quantizes colors and applies palette for GIF format.
+ * @param width - Frame width in pixels
+ * @param height - Frame height in pixels
+ * @param frames - Array of frames with ImageData to encode
+ * @returns Blob containing the encoded GIF file
+ */
 export function encodeGifFrames(
   width: number,
   height: number,

@@ -2,6 +2,10 @@ import * as React from "react"
 
 import { cn } from "@/lib/utils"
 
+/**
+ * A styled input component with consistent form control styling.
+ * Supports all standard HTML input props with Tailwind styling applied.
+ */
 function Input({ className, type, ...props }: React.ComponentProps<"input">) {
   return (
     <input
