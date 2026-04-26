@@ -95,7 +95,14 @@ function getExportHostSuffix() {
     return "";
   }
 
-  const sanitizedHostname = window.location.hostname
+  const hostname = window.location.hostname;
+
+  // Skip suffix for IP addresses to avoid cluttered filenames like "export-image_127-0-0-1.png"
+  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(hostname)) {
+    return "";
+  }
+
+  const sanitizedHostname = hostname
     .trim()
     .toLowerCase()
     .replace(/[^a-z0-9-]+/g, "-")
@@ -185,7 +192,7 @@ function downloadBlob(blob: Blob, fileName: string) {
   document.body.appendChild(anchor);
   anchor.click();
   document.body.removeChild(anchor);
-  window.setTimeout(() => URL.revokeObjectURL(url), 0);
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 function waitForNextPaint() {
@@ -708,28 +715,46 @@ export function SquircleEditor() {
 
     const JSZip = (await import("jszip")).default;
     const zip = new JSZip();
+    const failedItems: string[] = [];
 
     for (let index = 0; index < mediaItems.length; index += 1) {
       const item = mediaItems[index];
 
-      if (item.kind === "gif") {
-        const blob = await renderGifItemToBlob(item);
+      try {
+        if (item.kind === "gif") {
+          const blob = await renderGifItemToBlob(item);
+          zip.file(
+            getExportFileName(getFileStem(item.file.name), "gif", index),
+            await blob.arrayBuffer(),
+          );
+          continue;
+        }
+
+        const blob = await renderStillItemToBlob(item);
         zip.file(
-          getExportFileName(getFileStem(item.file.name), "gif", index),
+          getExportFileName(getFileStem(item.file.name), "png", index),
           await blob.arrayBuffer(),
         );
-        continue;
+      } catch {
+        failedItems.push(item.file.name);
+        logClientError("Batch export failed for item", item.id);
       }
+    }
 
-      const blob = await renderStillItemToBlob(item);
-      zip.file(
-        getExportFileName(getFileStem(item.file.name), "png", index),
-        await blob.arrayBuffer(),
+    const totalSuccessful = mediaItems.length - failedItems.length;
+
+    if (failedItems.length > 0) {
+      setUploadError(
+        `Couldn't export ${failedItems.length} item${failedItems.length > 1 ? "s" : ""}: ${failedItems.join(", ")}`,
       );
     }
 
+    if (totalSuccessful === 0) {
+      return;
+    }
+
     const content = await zip.generateAsync({ type: "blob" });
-    downloadBlob(content, getExportArchiveName(mediaItems.length));
+    downloadBlob(content, getExportArchiveName(totalSuccessful));
   }, [mediaItems, renderGifItemToBlob, renderStillItemToBlob]);
 
   const removeMediaItem = useCallback((id: string, event: React.MouseEvent) => {
@@ -761,6 +786,7 @@ export function SquircleEditor() {
       return [];
     });
     setActiveMediaId(null);
+    setActiveGifFrameIndex(0);
   }, []);
 
   const handlePreviewPointerDown = useCallback((event: React.PointerEvent<HTMLCanvasElement>) => {
