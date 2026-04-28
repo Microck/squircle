@@ -29,13 +29,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Deband dark gradient png exports (fe9972b)
 - Add app icons and correct readme hero (2a5789c)
 
-### Removed
-
-- Delete .github/assets/squircle-showcase.mp4 (e644786)
-- Delete AGENTS.md (0395a1b)
-
 ### Documentation
 
 - Update deployment access note (5ec720f)
 - Clarify vercel deployment access (0065a25)
-

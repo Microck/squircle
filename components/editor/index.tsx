@@ -16,6 +16,19 @@ import {
   ColorPickerSelection,
 } from "@/components/ui/color-picker";
 import {
+  assertSupportedImageDimensions,
+  getExportArchiveName,
+  getExportFileName,
+  getFileErrorMessage,
+  getFileStem,
+  getUploadProgressValue,
+  hexToRgba,
+  isGifFile,
+  isHexColorInputValid,
+  normalizeHexColor,
+  sanitizeFileName,
+} from "@/lib/editor-helpers";
+import {
   clampCropState,
   CROP_ZOOM_MIN,
   DEFAULT_CROP_STATE,
@@ -26,6 +39,7 @@ import {
 import { logClientError } from "@/lib/client-log";
 import { applyExportDeband } from "@/lib/export-deband";
 import { decodeGifFile, encodeGifFrames, type DecodedGifFrame } from "@/lib/gif";
+import { traceSquirclePath } from "@/lib/squircle-path";
 
 type BaseMediaItem = {
   id: string;
@@ -61,98 +75,12 @@ type UploadProgressState = {
   currentFileName: string;
 };
 
-const HEX_COLOR_RE = /^#?(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
 const CHECKERBOARD_LIGHT = "url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMCIgaGVpZ2h0PSIyMCI+PHJlY3Qgd2lkdGg9IjIwIiBoZWlnaHQ9IjIwIiBmaWxsPSIjZmZmIi8+PHJlY3Qgd2lkdGg9IjEwIiBoZWlnaHQ9IjEwIiBmaWxsPSIjZTBlMGUwIi8+PHJlY3QgeD0iMTAiIHk9IjEwIiB3aWR0aD0iMTAiIGhlaWdodD0iMTAiIGZpbGw9IiNlMGUwZTAiLz48L3N2Zz4=')";
 const MAX_UPLOAD_FILES = 20;
 const MAX_UPLOAD_FILE_BYTES = 50 * 1024 * 1024;
-const MAX_IMAGE_DIMENSION = 8192;
-const MAX_ERROR_FILE_NAME_LENGTH = 64;
-
-function normalizeHexColor(value: string) {
-  const trimmed = value.trim();
-  if (!HEX_COLOR_RE.test(trimmed)) {
-    return null;
-  }
-
-  const prefixed = trimmed.startsWith("#") ? trimmed : `#${trimmed}`;
-  if (prefixed.length === 4) {
-    return `#${prefixed[1]}${prefixed[1]}${prefixed[2]}${prefixed[2]}${prefixed[3]}${prefixed[3]}`.toLowerCase();
-  }
-
-  return prefixed.toLowerCase();
-}
-
-function isGifFile(file: File) {
-  return file.type === "image/gif" || file.name.toLowerCase().endsWith(".gif");
-}
-
-function getFileStem(name: string) {
-  return name.replace(/\.[^/.]+$/, "");
-}
-
-function getExportHostSuffix() {
-  if (typeof window === "undefined") {
-    return "";
-  }
-
-  const sanitizedHostname = window.location.hostname
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9-]+/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "");
-
-  return sanitizedHostname ? `_${sanitizedHostname}` : "";
-}
-
-function getExportFileName(stem: string, extension: string, index?: number) {
-  const prefix = typeof index === "number" ? `export-${index + 1}-${stem}` : `export-${stem}`;
-  return `${prefix}${getExportHostSuffix()}.${extension}`;
-}
-
-function getExportArchiveName(count: number) {
-  return `squircle-batch-${count}${getExportHostSuffix()}.zip`;
-}
-
-function hexToRgba(hex: string, alpha: number) {
-  if (hex === "transparent") return "transparent";
-  const sanitized = hex.replace("#", "");
-  const red = parseInt(sanitized.length === 3 ? sanitized[0] + sanitized[0] : sanitized.substring(0, 2), 16) || 0;
-  const green = parseInt(sanitized.length === 3 ? sanitized[1] + sanitized[1] : sanitized.substring(2, 4), 16) || 0;
-  const blue = parseInt(sanitized.length === 3 ? sanitized[2] + sanitized[2] : sanitized.substring(4, 6), 16) || 0;
-  return `rgba(${red}, ${green}, ${blue}, ${alpha / 100})`;
-}
 
 function createMediaId() {
   return crypto.randomUUID();
-}
-
-function sanitizeFileName(name: string) {
-  const sanitized = name.replace(/[<>\u0000-\u001F\u007F]/g, "").trim();
-  return (sanitized || "file").slice(0, MAX_ERROR_FILE_NAME_LENGTH);
-}
-
-function getFileErrorMessage(error: unknown) {
-  if (!(error instanceof Error)) {
-    return "Couldn't read that file.";
-  }
-
-  const message = error.message.trim();
-  if (!message) {
-    return "Couldn't read that file.";
-  }
-
-  return message.replace(/[<>\u0000-\u001F\u007F]/g, "").slice(0, 140);
-}
-
-function assertSupportedImageDimensions(width: number, height: number) {
-  if (width < 1 || height < 1) {
-    throw new Error("Image dimensions are invalid.");
-  }
-
-  if (width > MAX_IMAGE_DIMENSION || height > MAX_IMAGE_DIMENSION) {
-    throw new Error(`Images must stay within ${MAX_IMAGE_DIMENSION}x${MAX_IMAGE_DIMENSION}.`);
-  }
 }
 
 function loadImage(url: string) {
@@ -194,15 +122,6 @@ function waitForNextPaint() {
   });
 }
 
-function getUploadProgressValue(uploadProgress: UploadProgressState | null) {
-  if (!uploadProgress) {
-    return 0;
-  }
-
-  const inFlightOffset = uploadProgress.completed < uploadProgress.total ? 0.35 : 0;
-  return Math.min(100, Math.round(((uploadProgress.completed + inFlightOffset) / uploadProgress.total) * 100));
-}
-
 type ColorFieldProps = {
   label: string;
   value: string;
@@ -212,11 +131,7 @@ type ColorFieldProps = {
 function ColorField({ label, value, onChange }: ColorFieldProps) {
   const normalizedValue = normalizeHexColor(value) ?? "#000000";
   const [draft, setDraft] = useState(normalizedValue.toUpperCase());
-  const isDraftValid = draft.trim() === "" || HEX_COLOR_RE.test(draft.trim());
-
-  useEffect(() => {
-    setDraft(normalizedValue.toUpperCase());
-  }, [normalizedValue]);
+  const isDraftValid = isHexColorInputValid(draft);
 
   const commitDraft = useCallback(() => {
     const nextValue = normalizeHexColor(draft);
@@ -380,17 +295,7 @@ export function SquircleEditor() {
         return;
       }
 
-      shapeContext.beginPath();
-      shapeContext.moveTo(drawX + radiusPx, drawY);
-      shapeContext.lineTo(drawX + mediaWidth - radiusPx, drawY);
-      shapeContext.quadraticCurveTo(drawX + mediaWidth, drawY, drawX + mediaWidth, drawY + radiusPx);
-      shapeContext.lineTo(drawX + mediaWidth, drawY + mediaHeight - radiusPx);
-      shapeContext.quadraticCurveTo(drawX + mediaWidth, drawY + mediaHeight, drawX + mediaWidth - radiusPx, drawY + mediaHeight);
-      shapeContext.lineTo(drawX + radiusPx, drawY + mediaHeight);
-      shapeContext.quadraticCurveTo(drawX, drawY + mediaHeight, drawX, drawY + mediaHeight - radiusPx);
-      shapeContext.lineTo(drawX, drawY + radiusPx);
-      shapeContext.quadraticCurveTo(drawX, drawY, drawX + radiusPx, drawY);
-      shapeContext.closePath();
+      traceSquirclePath(shapeContext, drawX, drawY, mediaWidth, mediaHeight, radiusPx);
     };
 
     const layerCanvas = offscreenCanvasRef.current ?? document.createElement("canvas");
@@ -421,12 +326,7 @@ export function SquircleEditor() {
 
     context.save();
     if (hasShadow) {
-      const sanitized = shadowColor.replace("#", "");
-      const red = parseInt(sanitized.length === 3 ? sanitized[0] + sanitized[0] : sanitized.substring(0, 2), 16) || 0;
-      const green = parseInt(sanitized.length === 3 ? sanitized[1] + sanitized[1] : sanitized.substring(2, 4), 16) || 0;
-      const blue = parseInt(sanitized.length === 3 ? sanitized[2] + sanitized[2] : sanitized.substring(4, 6), 16) || 0;
-
-      context.shadowColor = `rgba(${red}, ${green}, ${blue}, ${shadowOpacity / 100})`;
+      context.shadowColor = hexToRgba(shadowColor, shadowOpacity);
       context.shadowBlur = shadowBlurValue;
       context.shadowOffsetX = shadowOffsetXValue;
       context.shadowOffsetY = shadowOffsetYValue;
@@ -578,6 +478,7 @@ export function SquircleEditor() {
       if (nextItems.length > 0) {
         setMediaItems((currentItems) => [...currentItems, ...nextItems]);
         setActiveMediaId((currentActiveMediaId) => currentActiveMediaId ?? nextItems[0].id);
+        setActiveGifFrameIndex(0);
       }
 
       if (failedCount > 0) {
@@ -643,10 +544,6 @@ export function SquircleEditor() {
 
     return encodeGifFrames(firstFrame.imageData.width, firstFrame.imageData.height, renderedFrames);
   }, [renderItemToCanvas]);
-
-  useEffect(() => {
-    setActiveGifFrameIndex(0);
-  }, [activeMediaId]);
 
   useEffect(() => {
     if (!activeItem || activeItem.kind !== "gif" || activeItem.frames.length < 2) {
@@ -728,13 +625,19 @@ export function SquircleEditor() {
           getExportFileName(getFileStem(item.file.name), "png", index),
           await blob.arrayBuffer(),
         );
-      } catch {
-        failedItems.push(item.file.name);
+      } catch (error) {
+        failedItems.push(sanitizeFileName(item.file.name));
+        logClientError("Failed to export media item", error);
       }
     }
 
     if (failedItems.length > 0) {
-      console.warn("Failed to export items:", failedItems.join(", "));
+      setUploadError(`Skipped ${failedItems.length} failed export${failedItems.length === 1 ? "" : "s"}: ${failedItems.join(", ")}`);
+      if (failedItems.length === mediaItems.length) {
+        return;
+      }
+    } else {
+      setUploadError(null);
     }
 
     const content = await zip.generateAsync({ type: "blob" });
@@ -890,7 +793,10 @@ export function SquircleEditor() {
             <div
               key={item.id}
               className={`relative shrink-0 w-14 h-14 rounded-lg overflow-hidden border-2 cursor-pointer transition-all ${activeMediaId === item.id ? "border-primary ring-2 ring-ring ring-offset-2 ring-offset-background" : "border-transparent opacity-60 hover:opacity-100"}`}
-              onClick={() => setActiveMediaId(item.id)}
+              onClick={() => {
+                setActiveMediaId(item.id);
+                setActiveGifFrameIndex(0);
+              }}
             >
               {/* Blob URLs and animated GIF thumbnails need the native image element here. */}
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -1062,7 +968,7 @@ export function SquircleEditor() {
                   </div>
                 </div>
 
-                <ColorField label="Shadow Color" onChange={setShadowColor} value={shadowColor} />
+                <ColorField key={shadowColor} label="Shadow Color" onChange={setShadowColor} value={shadowColor} />
               </div>
             ) : null}
           </div>
@@ -1096,7 +1002,7 @@ export function SquircleEditor() {
                   <Slider max={100} min={0} onValueChange={(value) => setOutlineOpacity(Array.isArray(value) ? value[0] : value)} step={1} value={[outlineOpacity]} />
                 </div>
 
-                <ColorField label="Outline Color" onChange={setOutlineColor} value={outlineColor} />
+                <ColorField key={outlineColor} label="Outline Color" onChange={setOutlineColor} value={outlineColor} />
               </div>
             ) : null}
           </div>
