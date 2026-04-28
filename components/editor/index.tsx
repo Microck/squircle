@@ -185,7 +185,7 @@ function downloadBlob(blob: Blob, fileName: string) {
   document.body.appendChild(anchor);
   anchor.click();
   document.body.removeChild(anchor);
-  window.setTimeout(() => URL.revokeObjectURL(url), 0);
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 function waitForNextPaint() {
@@ -708,24 +708,33 @@ export function SquircleEditor() {
 
     const JSZip = (await import("jszip")).default;
     const zip = new JSZip();
+    const failedItems: string[] = [];
 
     for (let index = 0; index < mediaItems.length; index += 1) {
       const item = mediaItems[index];
 
-      if (item.kind === "gif") {
-        const blob = await renderGifItemToBlob(item);
+      try {
+        if (item.kind === "gif") {
+          const blob = await renderGifItemToBlob(item);
+          zip.file(
+            getExportFileName(getFileStem(item.file.name), "gif", index),
+            await blob.arrayBuffer(),
+          );
+          continue;
+        }
+
+        const blob = await renderStillItemToBlob(item);
         zip.file(
-          getExportFileName(getFileStem(item.file.name), "gif", index),
+          getExportFileName(getFileStem(item.file.name), "png", index),
           await blob.arrayBuffer(),
         );
-        continue;
+      } catch {
+        failedItems.push(item.file.name);
       }
+    }
 
-      const blob = await renderStillItemToBlob(item);
-      zip.file(
-        getExportFileName(getFileStem(item.file.name), "png", index),
-        await blob.arrayBuffer(),
-      );
+    if (failedItems.length > 0) {
+      console.warn("Failed to export items:", failedItems.join(", "));
     }
 
     const content = await zip.generateAsync({ type: "blob" });
@@ -761,6 +770,7 @@ export function SquircleEditor() {
       return [];
     });
     setActiveMediaId(null);
+    setActiveGifFrameIndex(0);
   }, []);
 
   const handlePreviewPointerDown = useCallback((event: React.PointerEvent<HTMLCanvasElement>) => {

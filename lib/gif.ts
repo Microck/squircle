@@ -122,7 +122,7 @@ export function composeGifFrames(
     applyPatch(workingPixels, width, height, frame);
 
     const composedFrame = {
-      delay: frame.delay,
+      delay: Math.max(20, frame.delay),
       pixels: new Uint8ClampedArray(workingPixels),
     };
 
