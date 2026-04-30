@@ -1,6 +1,7 @@
 "use client";
 
 import Color from "color";
+import { logClientError } from "@/lib/client-log";
 import { PipetteIcon } from "lucide-react";
 import {
   type ComponentProps,
@@ -340,7 +341,7 @@ export const ColorPickerEyeDropper = ({ className, ...props }: ColorPickerEyeDro
       setBrightness(brightness);
       setAlpha(100);
     } catch (error) {
-      console.error("EyeDropper failed:", error);
+      logClientError("EyeDropper failed", error);
     }
   };
 

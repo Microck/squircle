@@ -24,6 +24,7 @@ export const metadata: Metadata = {
   description:
     "Drop images, dial in rounded or squircle corners, and export transparent PNGs locally with no upload step.",
   applicationName: "Squircle",
+  manifest: "/manifest.webmanifest",
   authors: [{ name: "Microck", url: "https://micr.dev" }],
   creator: "Microck",
   keywords: [

@@ -13,7 +13,7 @@
 
 ---
 
-drop one image or a whole batch, tune the corner profile, shadow, and outline, then export transparent-corner pngs without sending files to a server.
+drop one image, animated gif, or a whole batch, tune the corner profile, crop, shadow, and outline, then export transparent-corner files without sending anything to a server.
 
 ## why
 
@@ -36,24 +36,28 @@ pnpm dev --hostname 0.0.0.0 --port 3004
 
 ## feature surface
 
-- drag and drop one image or many images in one pass
+- drag and drop one image, animated gif, or many files in one pass
 - switch between `squircle` and standard rounded-corner output
+- crop with a cover-style zoom slider and drag-to-reposition preview
 - tune corner radius with live preview
 - add drop shadow with blur, opacity, offset, and color control
 - add outer outline with width, opacity, and color control
 - edit shadow and outline colors with picker plus hex input
 - preview on dark or light surfaces before export
-- export a single image as `png`
-- export a whole batch as a `.zip` of rendered `png` files
-- keep image processing in the browser instead of uploading source files
+- export a single still image as `png`
+- export a single animated gif as `gif`
+- export a whole batch as a `.zip` of rendered `png` and `gif` files
+- keep image and gif processing in the browser instead of uploading source files
 
 ## input and output behavior
 
 - supported input formats depend on what the browser can decode, including common formats such as `jpeg`, `png`, `webp`, `gif`, `avif`, and `svg`
-- export is `png` only
-- animated `gif` and animated `webp` inputs are currently treated as first-frame-only
+- animated `gif` inputs stay animated through preview and export
+- still-image exports are `png`
+- animated gif exports are `gif`
+- video input is not supported yet
 - metadata is not preserved during export
-- the output keeps the rendered source dimensions after the chosen corner, shadow, and outline settings are applied
+- the output keeps the rendered source dimensions after the chosen crop, corner, shadow, and outline settings are applied
 
 ## local development
 
