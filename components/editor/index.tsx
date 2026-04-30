@@ -118,6 +118,15 @@ function ColorField({ label, value, onChange }: ColorFieldProps) {
   );
 }
 
+function hexToRgba(hex: string, alpha: number) {
+  if (hex === "transparent") return "transparent";
+  const h = hex.replace("#", "");
+  const r = parseInt(h.length === 3 ? h[0]+h[0] : h.substring(0,2), 16) || 0;
+  const g = parseInt(h.length === 3 ? h[1]+h[1] : h.substring(2,4), 16) || 0;
+  const b = parseInt(h.length === 3 ? h[2]+h[2] : h.substring(4,6), 16) || 0;
+  return `rgba(${r}, ${g}, ${b}, ${alpha / 100})`;
+}
+
 export function SquircleEditor() {
   const [images, setImages] = useState<ImageItem[]>([]);
   const [activeImageId, setActiveImageId] = useState<string | null>(null);
@@ -140,15 +149,6 @@ export function SquircleEditor() {
   const [previewBg, setPreviewBg] = useState<"dark" | "light">("dark");
   
   const canvasRef = useRef<HTMLCanvasElement>(null);
-
-  const hexToRgba = (hex: string, alpha: number) => {
-    if (hex === "transparent") return "transparent";
-    const h = hex.replace("#", "");
-    const r = parseInt(h.length === 3 ? h[0]+h[0] : h.substring(0,2), 16) || 0;
-    const g = parseInt(h.length === 3 ? h[1]+h[1] : h.substring(2,4), 16) || 0;
-    const b = parseInt(h.length === 3 ? h[2]+h[2] : h.substring(4,6), 16) || 0;
-    return `rgba(${r}, ${g}, ${b}, ${alpha / 100})`;
-  };
 
   const processFiles = useCallback((files: File[]) => {
     const validFiles = files.filter(f => f.type.startsWith("image/"));
@@ -275,12 +275,7 @@ export function SquircleEditor() {
     // Draw layer onto main canvas with drop shadow
     ctx.save();
     if (hasShadow) {
-      const hex = shadowColor.replace("#", "");
-      const r = parseInt(hex.length === 3 ? hex[0]+hex[0] : hex.substring(0,2), 16) || 0;
-      const g = parseInt(hex.length === 3 ? hex[1]+hex[1] : hex.substring(2,4), 16) || 0;
-      const b = parseInt(hex.length === 3 ? hex[2]+hex[2] : hex.substring(4,6), 16) || 0;
-      
-      ctx.shadowColor = `rgba(${r}, ${g}, ${b}, ${shadowOpacity / 100})`;
+      ctx.shadowColor = hexToRgba(shadowColor, shadowOpacity);
       ctx.shadowBlur = sBlur;
       ctx.shadowOffsetX = sOffsetX;
       ctx.shadowOffsetY = sOffsetY;
@@ -333,21 +328,24 @@ export function SquircleEditor() {
     }
   };
 
-  const removeImage = (id: string, e: React.MouseEvent) => {
+  const removeImage = useCallback((id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     setImages(prev => {
+      const removed = prev.find(img => img.id === id);
+      if (removed) URL.revokeObjectURL(removed.url);
       const next = prev.filter(img => img.id !== id);
       if (activeImageId === id) {
         setActiveImageId(next.length > 0 ? next[0].id : null);
       }
       return next;
     });
-  };
+  }, [activeImageId]);
 
-  const clearAll = () => {
+  const clearAll = useCallback(() => {
+    images.forEach(img => URL.revokeObjectURL(img.url));
     setImages([]);
     setActiveImageId(null);
-  };
+  }, [images]);
 
   if (images.length === 0) {
     return (
