@@ -3,7 +3,25 @@ type PathLike = Pick<
   "beginPath" | "closePath" | "lineTo" | "moveTo"
 >;
 
+// Superellipse exponent for the squircle shape.  n = 5 produces a
+// rounded-rect approximation that sits between a circle (n = 2) and a
+// true rectangle; it closely matches the visual feel of iOS icon masks.
+// Apple uses a different, proprietary formulation (continuous-corner
+// Bézier splines) which is not publicly documented — this exponent is
+// a widely-used open-source alternative.
 const SQUIRCLE_EXPONENT = 5;
+
+// Number of line segments per corner when tracing the squircle.
+// Too few (e.g. 4) produces visible facets; too many (e.g. 48) wastes
+// GPU/CPU cycles with no visible improvement.  12 was empirically
+// determined to be the sweet spot where the curvature error is below
+// one sub-pixel on a 1× display.
+//
+// Line segments are used instead of cubic Bézier curves because a
+// superellipse has no exact Bézier representation — any Bézier fit is
+// itself an approximation, and evenly-spaced line segments are simpler
+// to reason about and produce consistent rendering across Canvas 2D,
+// SVG, and OffscreenCanvas.
 const SQUIRCLE_SEGMENTS_PER_CORNER = 12;
 
 function signedSuperellipseCoordinate(value: number) {

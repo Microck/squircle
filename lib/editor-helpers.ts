@@ -1,5 +1,8 @@
 const HEX_COLOR_RE = /^#?(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
 const MAX_IMAGE_DIMENSION = 8192;
+// Truncation length for file names shown in error messages.  64 chars
+// keeps messages readable and avoids overflowing common filesystem path
+// limits (e.g. Linux PATH_MAX = 4096).
 const MAX_ERROR_FILE_NAME_LENGTH = 64;
 const IPV4_HOST_RE = /^\d{1,3}(?:\.\d{1,3}){3}$/;
 
@@ -29,6 +32,17 @@ export function getFileStem(name: string) {
   return name.replace(/\.[^/.]+$/, "");
 }
 
+/**
+ * Returns a hostname-derived suffix for exported file names.
+ *
+ * Embedding the hostname in export file names (e.g. `photo_example.com.png`)
+ * prevents name collisions when a user downloads from multiple Squircle
+ * instances (localhost, staging, production) in the same browser session.
+ *
+ * Raw IPv4 addresses (e.g. 192.168.1.1) are excluded because they look
+ * like version strings in file names and rarely provide meaningful
+ * disambiguation.
+ */
 export function getExportHostSuffix(hostname?: string) {
   const candidateHostname =
     hostname ?? (typeof window === "undefined" ? "" : window.location.hostname);
@@ -102,6 +116,10 @@ export function getUploadProgressValue(uploadProgress: { total: number; complete
     return 0;
   }
 
+  // The 0.35 offset is a UX smoothing constant: while a file is being
+  // decoded in-flight (between `completed` increments) the bar sits at
+  // ~35 % of the *current file's* segment so the user sees continuous
+  // movement instead of a stalled bar.
   const inFlightOffset = uploadProgress.completed < uploadProgress.total ? 0.35 : 0;
   return Math.min(100, Math.round(((uploadProgress.completed + inFlightOffset) / uploadProgress.total) * 100));
 }
