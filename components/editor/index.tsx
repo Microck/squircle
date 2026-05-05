@@ -76,7 +76,13 @@ type UploadProgressState = {
 };
 
 const CHECKERBOARD_LIGHT = "url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMCIgaGVpZ2h0PSIyMCI+PHJlY3Qgd2lkdGg9IjIwIiBoZWlnaHQ9IjIwIiBmaWxsPSIjZmZmIi8+PHJlY3Qgd2lkdGg9IjEwIiBoZWlnaHQ9IjEwIiBmaWxsPSIjZTBlMGUwIi8+PHJlY3QgeD0iMTAiIHk9IjEwIiB3aWR0aD0iMTAiIGhlaWdodD0iMTAiIGZpbGw9IiNlMGUwZTAiLz48L3N2Zz4=')";
+// Maximum files accepted per batch upload.  Kept low to avoid running
+// the browser out of memory when decoding dozens of large images or GIFs
+// simultaneously on the main thread.
 const MAX_UPLOAD_FILES = 20;
+// Maximum individual file size (50 MB).  Large files consume significant
+// heap memory when decoded to RGBA pixel buffers and can trigger OOM
+// crashes on mobile devices or low-end hardware.
 const MAX_UPLOAD_FILE_BYTES = 50 * 1024 * 1024;
 
 function createMediaId() {
@@ -113,9 +119,14 @@ function downloadBlob(blob: Blob, fileName: string) {
   document.body.appendChild(anchor);
   anchor.click();
   document.body.removeChild(anchor);
+  // Delay revocation so the browser has time to start the download before
+  // the blob URL is invalidated.  Some browsers (especially Firefox) will
+  // silently cancel the download if the URL is revoked too early.
   window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
+// Yield to the browser so the progress-bar repaints between iterations of
+// batch export / upload loops.  Without this pause the UI appears frozen.
 function waitForNextPaint() {
   return new Promise<void>((resolve) => {
     requestAnimationFrame(() => resolve());
