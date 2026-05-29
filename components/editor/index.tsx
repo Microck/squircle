@@ -174,9 +174,11 @@ export function SquircleEditor() {
 
   const [shape, setShape] = useState<"round" | "squircle">("squircle");
   const [radius, setRadius] = useState<number>(15);
+  const [smoothing, setSmoothing] = useState<number>(60);
 
   const [hasShadow, setHasShadow] = useState<boolean>(false);
   const [shadowBlur, setShadowBlur] = useState<number>(20);
+  const [shadowSpread, setShadowSpread] = useState<number>(0);
   const [shadowOffsetX, setShadowOffsetX] = useState<number>(0);
   const [shadowOffsetY, setShadowOffsetY] = useState<number>(10);
   const [shadowColor, setShadowColor] = useState<string>("#000000");
@@ -238,10 +240,18 @@ export function SquircleEditor() {
     const shadowOffsetXValue = hasShadow ? shadowOffsetX : 0;
     const shadowOffsetYValue = hasShadow ? shadowOffsetY : 0;
     const shadowBlurValue = hasShadow ? shadowBlur : 0;
+    const shadowSpreadValue = hasShadow ? shadowSpread : 0;
     const outlineWidthValue = hasOutline ? outlineWidth : 0;
+    const positiveShadowSpread = Math.max(0, shadowSpreadValue);
 
-    const shadowPadX = Math.max(Math.abs(shadowOffsetXValue) + shadowBlurValue * 1.5, outlineWidthValue) + 8;
-    const shadowPadY = Math.max(Math.abs(shadowOffsetYValue) + shadowBlurValue * 1.5, outlineWidthValue) + 8;
+    const shadowPadX = Math.max(
+      Math.abs(shadowOffsetXValue) + shadowBlurValue * 1.5 + positiveShadowSpread,
+      outlineWidthValue,
+    ) + 8;
+    const shadowPadY = Math.max(
+      Math.abs(shadowOffsetYValue) + shadowBlurValue * 1.5 + positiveShadowSpread,
+      outlineWidthValue,
+    ) + 8;
     const outputWidth = mediaWidth + shadowPadX * 2;
     const outputHeight = mediaHeight + shadowPadY * 2;
     const drawX = shadowPadX;
@@ -252,15 +262,22 @@ export function SquircleEditor() {
     canvas.height = outputHeight;
     context.clearRect(0, 0, outputWidth, outputHeight);
 
-    const drawShape = (shapeContext: CanvasRenderingContext2D) => {
+    const drawShape = (
+      shapeContext: CanvasRenderingContext2D,
+      shapeX = drawX,
+      shapeY = drawY,
+      shapeWidth = mediaWidth,
+      shapeHeight = mediaHeight,
+      shapeRadius = radiusPx,
+    ) => {
       if (shape === "round") {
         shapeContext.beginPath();
-        shapeContext.roundRect(drawX, drawY, mediaWidth, mediaHeight, radiusPx);
+        shapeContext.roundRect(shapeX, shapeY, shapeWidth, shapeHeight, shapeRadius);
         shapeContext.closePath();
         return;
       }
 
-      traceSquirclePath(shapeContext, drawX, drawY, mediaWidth, mediaHeight, radiusPx);
+      traceSquirclePath(shapeContext, shapeX, shapeY, shapeWidth, shapeHeight, shapeRadius, smoothing);
     };
 
     const layerCanvas = offscreenCanvasRef.current ?? document.createElement("canvas");
@@ -289,13 +306,24 @@ export function SquircleEditor() {
     layerContext.drawImage(source, sx, sy, sw, sh, drawX, drawY, mediaWidth, mediaHeight);
     layerContext.restore();
 
-    context.save();
     if (hasShadow) {
+      const shadowGrow = shadowSpreadValue + outlineWidthValue;
+      const shadowWidth = Math.max(1, mediaWidth + shadowGrow * 2);
+      const shadowHeight = Math.max(1, mediaHeight + shadowGrow * 2);
+      const shadowRadius = Math.max(0, radiusPx + shadowGrow);
+
+      context.save();
       context.shadowColor = hexToRgba(shadowColor, shadowOpacity);
       context.shadowBlur = shadowBlurValue;
       context.shadowOffsetX = shadowOffsetXValue;
       context.shadowOffsetY = shadowOffsetYValue;
+      context.fillStyle = hexToRgba(shadowColor, shadowOpacity);
+      drawShape(context, drawX - shadowGrow, drawY - shadowGrow, shadowWidth, shadowHeight, shadowRadius);
+      context.fill();
+      context.restore();
     }
+
+    context.save();
     context.drawImage(layerCanvas, 0, 0);
     context.restore();
   }, [
@@ -310,7 +338,9 @@ export function SquircleEditor() {
     shadowOffsetX,
     shadowOffsetY,
     shadowOpacity,
+    shadowSpread,
     shape,
+    smoothing,
   ]);
 
   const prepareCanvasForExport = useCallback((canvas: HTMLCanvasElement) => {
@@ -715,6 +745,7 @@ export function SquircleEditor() {
   if (mediaItems.length === 0) {
     return (
       <div
+        aria-label="Select images or GIFs"
         className={`w-full max-w-2xl mx-auto aspect-video rounded-2xl border border-dashed border-border bg-card text-card-foreground flex flex-col items-center justify-center transition-colors ${uploadProgress ? "cursor-progress" : "cursor-pointer hover:bg-muted/50"}`}
         onClick={() => {
           if (!uploadProgress) {
@@ -723,6 +754,14 @@ export function SquircleEditor() {
         }}
         onDragOver={handleDragOver}
         onDrop={handleDrop}
+        onKeyDown={(event) => {
+          if (!uploadProgress && (event.key === "Enter" || event.key === " ")) {
+            event.preventDefault();
+            document.getElementById("file-upload")?.click();
+          }
+        }}
+        role="button"
+        tabIndex={uploadProgress ? -1 : 0}
       >
         {uploadProgress ? (
           <div className="w-full max-w-md px-6">
@@ -757,21 +796,28 @@ export function SquircleEditor() {
           {mediaItems.map((item) => (
             <div
               key={item.id}
-              className={`relative shrink-0 w-14 h-14 rounded-lg overflow-hidden border-2 cursor-pointer transition-all ${activeMediaId === item.id ? "border-primary ring-2 ring-ring ring-offset-2 ring-offset-background" : "border-transparent opacity-60 hover:opacity-100"}`}
-              onClick={() => {
-                setActiveMediaId(item.id);
-                setActiveGifFrameIndex(0);
-              }}
+              className={`relative shrink-0 w-14 h-14 rounded-lg overflow-hidden border-2 transition-all ${activeMediaId === item.id ? "border-primary ring-2 ring-ring ring-offset-2 ring-offset-background" : "border-transparent opacity-60 hover:opacity-100"}`}
             >
-              {/* Blob URLs and animated GIF thumbnails need the native image element here. */}
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img alt="" className="w-full h-full object-cover" src={item.url} />
-              {item.kind === "gif" ? (
-                <span className="absolute left-1 top-1 rounded bg-background/80 px-1 py-0.5 text-[10px] font-medium text-foreground">
-                  GIF
-                </span>
-              ) : null}
               <button
+                aria-label={`Select ${sanitizeFileName(item.file.name)}`}
+                className="h-full w-full cursor-pointer"
+                onClick={() => {
+                  setActiveMediaId(item.id);
+                  setActiveGifFrameIndex(0);
+                }}
+                type="button"
+              >
+                {/* Blob URLs and animated GIF thumbnails need the native image element here. */}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img alt="" className="w-full h-full object-cover" src={item.url} />
+                {item.kind === "gif" ? (
+                  <span className="absolute left-1 top-1 rounded bg-background/80 px-1 py-0.5 text-[10px] font-medium text-foreground">
+                    GIF
+                  </span>
+                ) : null}
+              </button>
+              <button
+                aria-label={`Remove ${sanitizeFileName(item.file.name)}`}
                 className="absolute top-0.5 right-0.5 bg-background/80 text-foreground rounded-full p-0.5 hover:bg-destructive hover:text-destructive-foreground transition-colors"
                 onClick={(event) => removeMediaItem(item.id, event)}
               >
@@ -780,8 +826,17 @@ export function SquircleEditor() {
             </div>
           ))}
           <div
+            aria-label="Add more images"
             className="shrink-0 w-14 h-14 rounded-lg border-2 border-dashed border-border flex items-center justify-center cursor-pointer hover:bg-muted/50 transition-colors"
             onClick={() => document.getElementById("file-upload-add")?.click()}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                document.getElementById("file-upload-add")?.click();
+              }
+            }}
+            role="button"
+            tabIndex={0}
           >
             <UploadCloud className="w-5 h-5 text-muted-foreground" />
             <input
@@ -818,12 +873,14 @@ export function SquircleEditor() {
 
         <div className="absolute top-4 right-4 flex bg-background/80 backdrop-blur-md rounded-full p-1 border border-border">
           <button
+            aria-label="Use dark preview background"
             className={`p-1.5 rounded-full transition-colors ${previewBg === "dark" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"}`}
             onClick={() => setPreviewBg("dark")}
           >
             <Moon className="w-4 h-4" />
           </button>
           <button
+            aria-label="Use light preview background"
             className={`p-1.5 rounded-full transition-colors ${previewBg === "light" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"}`}
             onClick={() => setPreviewBg("light")}
           >
@@ -847,6 +904,7 @@ export function SquircleEditor() {
             </label>
           </div>
           <Slider
+            aria-label="Corner radius"
             className="cursor-ew-resize"
             max={100}
             min={0}
@@ -856,6 +914,28 @@ export function SquircleEditor() {
           />
         </div>
 
+        {shape === "squircle" ? (
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <label className="text-sm font-semibold text-foreground tracking-wide">
+                Corner Smoothing: <span className="font-normal text-muted-foreground">{smoothing}%</span>
+              </label>
+            </div>
+            <Slider
+              aria-label="Corner smoothing"
+              className="cursor-ew-resize"
+              max={100}
+              min={0}
+              onValueChange={(value) => setSmoothing(Array.isArray(value) ? value[0] : value)}
+              step={1}
+              value={[smoothing]}
+            />
+            <p className="text-xs text-muted-foreground">
+              Lower values stay closer to a circular corner. Higher values create the softer squircle shoulder.
+            </p>
+          </div>
+        ) : null}
+
         <div className="space-y-4">
           <div className="flex justify-between items-center gap-4">
             <label className="text-sm font-semibold text-foreground tracking-wide">
@@ -864,6 +944,7 @@ export function SquircleEditor() {
             </label>
           </div>
           <Slider
+            aria-label="Crop zoom"
             className="cursor-ew-resize"
             max={300}
             min={100}
@@ -889,13 +970,16 @@ export function SquircleEditor() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
           <div className="bg-card rounded-2xl border border-border overflow-hidden">
             <div
-              className="flex items-center justify-between p-4 cursor-pointer hover:bg-muted/30 transition-colors"
-              onClick={() => setHasShadow(!hasShadow)}
+              className="flex items-center justify-between p-4"
             >
-              <label className="text-sm font-semibold text-foreground tracking-wide cursor-pointer pointer-events-none">
+              <span className="text-sm font-semibold text-foreground tracking-wide">
                 Drop Shadow
-              </label>
-              <Switch checked={hasShadow} onCheckedChange={setHasShadow} />
+              </span>
+              <Switch
+                aria-label="Toggle drop shadow"
+                checked={hasShadow}
+                onCheckedChange={setHasShadow}
+              />
             </div>
 
             {hasShadow ? (
@@ -905,7 +989,7 @@ export function SquircleEditor() {
                     <span className="text-xs text-muted-foreground">Blur</span>
                     <span className="text-xs">{shadowBlur}px</span>
                   </div>
-                  <Slider max={100} min={0} onValueChange={(value) => setShadowBlur(Array.isArray(value) ? value[0] : value)} step={1} value={[shadowBlur]} />
+                  <Slider aria-label="Shadow blur" max={100} min={0} onValueChange={(value) => setShadowBlur(Array.isArray(value) ? value[0] : value)} step={1} value={[shadowBlur]} />
                 </div>
 
                 <div className="space-y-3">
@@ -913,7 +997,15 @@ export function SquircleEditor() {
                     <span className="text-xs text-muted-foreground">Opacity</span>
                     <span className="text-xs">{shadowOpacity}%</span>
                   </div>
-                  <Slider max={100} min={0} onValueChange={(value) => setShadowOpacity(Array.isArray(value) ? value[0] : value)} step={1} value={[shadowOpacity]} />
+                  <Slider aria-label="Shadow opacity" max={100} min={0} onValueChange={(value) => setShadowOpacity(Array.isArray(value) ? value[0] : value)} step={1} value={[shadowOpacity]} />
+                </div>
+
+                <div className="space-y-3">
+                  <div className="flex justify-between">
+                    <span className="text-xs text-muted-foreground">Spread</span>
+                    <span className="text-xs">{shadowSpread}px</span>
+                  </div>
+                  <Slider aria-label="Shadow spread" max={80} min={-40} onValueChange={(value) => setShadowSpread(Array.isArray(value) ? value[0] : value)} step={1} value={[shadowSpread]} />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
@@ -922,14 +1014,14 @@ export function SquircleEditor() {
                       <span className="text-xs text-muted-foreground">Offset X</span>
                       <span className="text-xs">{shadowOffsetX}px</span>
                     </div>
-                    <Slider max={100} min={-100} onValueChange={(value) => setShadowOffsetX(Array.isArray(value) ? value[0] : value)} step={1} value={[shadowOffsetX]} />
+                    <Slider aria-label="Shadow offset X" max={100} min={-100} onValueChange={(value) => setShadowOffsetX(Array.isArray(value) ? value[0] : value)} step={1} value={[shadowOffsetX]} />
                   </div>
                   <div className="space-y-3">
                     <div className="flex justify-between">
                       <span className="text-xs text-muted-foreground">Offset Y</span>
                       <span className="text-xs">{shadowOffsetY}px</span>
                     </div>
-                    <Slider max={100} min={-100} onValueChange={(value) => setShadowOffsetY(Array.isArray(value) ? value[0] : value)} step={1} value={[shadowOffsetY]} />
+                    <Slider aria-label="Shadow offset Y" max={100} min={-100} onValueChange={(value) => setShadowOffsetY(Array.isArray(value) ? value[0] : value)} step={1} value={[shadowOffsetY]} />
                   </div>
                 </div>
 
@@ -940,13 +1032,16 @@ export function SquircleEditor() {
 
           <div className="bg-card rounded-2xl border border-border overflow-hidden">
             <div
-              className="flex items-center justify-between p-4 cursor-pointer hover:bg-muted/30 transition-colors"
-              onClick={() => setHasOutline(!hasOutline)}
+              className="flex items-center justify-between p-4"
             >
-              <label className="text-sm font-semibold text-foreground tracking-wide cursor-pointer pointer-events-none">
+              <span className="text-sm font-semibold text-foreground tracking-wide">
                 Outer Outline
-              </label>
-              <Switch checked={hasOutline} onCheckedChange={setHasOutline} />
+              </span>
+              <Switch
+                aria-label="Toggle outer outline"
+                checked={hasOutline}
+                onCheckedChange={setHasOutline}
+              />
             </div>
 
             {hasOutline ? (
@@ -956,7 +1051,7 @@ export function SquircleEditor() {
                     <span className="text-xs text-muted-foreground">Width</span>
                     <span className="text-xs">{outlineWidth}px</span>
                   </div>
-                  <Slider max={50} min={1} onValueChange={(value) => setOutlineWidth(Array.isArray(value) ? value[0] : value)} step={1} value={[outlineWidth]} />
+                  <Slider aria-label="Outline width" max={50} min={1} onValueChange={(value) => setOutlineWidth(Array.isArray(value) ? value[0] : value)} step={1} value={[outlineWidth]} />
                 </div>
 
                 <div className="space-y-3">
@@ -964,7 +1059,7 @@ export function SquircleEditor() {
                     <span className="text-xs text-muted-foreground">Opacity</span>
                     <span className="text-xs">{outlineOpacity}%</span>
                   </div>
-                  <Slider max={100} min={0} onValueChange={(value) => setOutlineOpacity(Array.isArray(value) ? value[0] : value)} step={1} value={[outlineOpacity]} />
+                  <Slider aria-label="Outline opacity" max={100} min={0} onValueChange={(value) => setOutlineOpacity(Array.isArray(value) ? value[0] : value)} step={1} value={[outlineOpacity]} />
                 </div>
 
                 <ColorField key={outlineColor} label="Outline Color" onChange={setOutlineColor} value={outlineColor} />
