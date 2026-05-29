@@ -44,3 +44,4 @@ playwright-report/
 
 # local next.js type output
 next-env.d.ts
+.residue/
