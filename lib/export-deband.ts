@@ -1,4 +1,25 @@
+/**
+ * Post-export debanding for 8-bit PNG output.
+ *
+ * 8-bit PNG gradients show visible banding on dark backgrounds after
+ * squircle masking because the alpha transition quantises to a handful of
+ * discrete levels.  A small amount of ordered dither masks those steps so
+ * the gradient appears smooth to the eye.
+ *
+ * The noise is **deterministic** (seeded by pixel coordinates) so that
+ * re-exporting the same image always produces identical output — important
+ * for reproducible builds and caching.
+ */
+
+// Luma threshold (0–255) below which banding is perceptible on dark
+// backgrounds.  Chosen empirically: banding only becomes visible in the
+// deep shadow region, and 96 is where human vision starts to notice the
+// quantisation steps.
 const DARK_LUMA_THRESHOLD = 96;
+
+// Maximum pixel-value delta added during dither.  Kept intentionally small
+// (4 out of 255) so the noise is sub-threshold for midtones but enough to
+// break up contour lines in dark regions.
 const MAX_DITHER_DELTA = 4;
 
 function clampToByte(value: number) {

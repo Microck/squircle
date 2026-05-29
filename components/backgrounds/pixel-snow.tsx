@@ -1,3 +1,18 @@
+/**
+ * WebGL-powered pixel-snow background effect.
+ *
+ * Why WebGL / Three.js instead of CSS animation or Canvas 2D?
+ *  – CSS `@keyframes` can't do per-pixel ray-marching; the snowflake SDF
+ *    and depth traversal require a fragment shader.
+ *  – Canvas 2D is CPU-bound and can't hit a stable 30 fps at high
+ *    resolutions without dropping frames.
+ *  – A full-screen quad with a fragment shader gives pixel-perfect
+ *    control at variable resolution and keeps the main thread free.
+ *
+ * Based on the ReactBits PixelSnow component (MIT-licensed).
+ * See: https://www.reactbits.dev/backgrounds/pixel-snow
+ */
+
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef } from "react";

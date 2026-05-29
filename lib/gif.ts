@@ -28,6 +28,10 @@ export type GifImageDataFrame = {
   };
 };
 
+// Upper bound on GIF width/height in pixels.  Matches the maximum
+// texture size supported by most WebGL implementations (and the hard
+// limit for Canvas 2D on many mobile GPUs).  Exceeding this causes
+// silent failures or crashes.
 export const MAX_GIF_DIMENSION = 4096;
 export const MAX_GIF_FRAME_COUNT = 300;
 
@@ -122,6 +126,10 @@ export function composeGifFrames(
     applyPatch(workingPixels, width, height, frame);
 
     const composedFrame = {
+      // The GIF spec allows frame delays down to 0 centiseconds, but many
+      // renderers (including most browsers) treat a 0 ms delay as 100 ms.
+      // Clamping to 20 ms ensures the animation speed stays consistent
+      // across all viewers.
       delay: Math.max(20, frame.delay),
       pixels: new Uint8ClampedArray(workingPixels),
     };

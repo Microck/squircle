@@ -40,6 +40,7 @@ import { logClientError } from "@/lib/client-log";
 import { applyExportDeband } from "@/lib/export-deband";
 import { decodeGifFile, encodeGifFrames, type DecodedGifFrame } from "@/lib/gif";
 import { traceSquirclePath } from "@/lib/squircle-path";
+import { canvasToBlob, createMediaId, downloadBlob, loadImage, waitForNextPaint } from "@/lib/media-io";
 
 type BaseMediaItem = {
   id: string;
@@ -76,51 +77,15 @@ type UploadProgressState = {
 };
 
 const CHECKERBOARD_LIGHT = "url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMCIgaGVpZ2h0PSIyMCI+PHJlY3Qgd2lkdGg9IjIwIiBoZWlnaHQ9IjIwIiBmaWxsPSIjZmZmIi8+PHJlY3Qgd2lkdGg9IjEwIiBoZWlnaHQ9IjEwIiBmaWxsPSIjZTBlMGUwIi8+PHJlY3QgeD0iMTAiIHk9IjEwIiB3aWR0aD0iMTAiIGhlaWdodD0iMTAiIGZpbGw9IiNlMGUwZTAiLz48L3N2Zz4=')";
+// Maximum files accepted per batch upload.  Kept low to avoid running
+// the browser out of memory when decoding dozens of large images or GIFs
+// simultaneously on the main thread.
 const MAX_UPLOAD_FILES = 20;
+// Maximum individual file size (50 MB).  Large files consume significant
+// heap memory when decoded to RGBA pixel buffers and can trigger OOM
+// crashes on mobile devices or low-end hardware.
 const MAX_UPLOAD_FILE_BYTES = 50 * 1024 * 1024;
 
-function createMediaId() {
-  return crypto.randomUUID();
-}
-
-function loadImage(url: string) {
-  return new Promise<HTMLImageElement>((resolve, reject) => {
-    const image = new Image();
-    image.onload = () => resolve(image);
-    image.onerror = () => reject(new Error("Couldn't decode that image."));
-    image.src = url;
-  });
-}
-
-function canvasToBlob(canvas: HTMLCanvasElement, type = "image/png") {
-  return new Promise<Blob>((resolve, reject) => {
-    canvas.toBlob((blob) => {
-      if (!blob) {
-        reject(new Error(`Failed to create ${type} blob`));
-        return;
-      }
-
-      resolve(blob);
-    }, type);
-  });
-}
-
-function downloadBlob(blob: Blob, fileName: string) {
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = fileName;
-  document.body.appendChild(anchor);
-  anchor.click();
-  document.body.removeChild(anchor);
-  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
-
-function waitForNextPaint() {
-  return new Promise<void>((resolve) => {
-    requestAnimationFrame(() => resolve());
-  });
-}
 
 type ColorFieldProps = {
   label: string;
