@@ -40,7 +40,7 @@ pnpm dev --hostname 0.0.0.0 --port 3004
 - switch between `squircle` and standard rounded-corner output
 - crop with a cover-style zoom slider and drag-to-reposition preview
 - tune corner radius with live preview
-- add drop shadow with blur, opacity, offset, and color control
+- add drop shadow with blur, spread, opacity, offset, and color control
 - add outer outline with width, opacity, and color control
 - edit shadow and outline colors with picker plus hex input
 - preview on dark or light surfaces before export
