@@ -1,6 +1,5 @@
 "use client";
 
-import Color from "color";
 import { logClientError } from "@/lib/client-log";
 import { PipetteIcon } from "lucide-react";
 import {
@@ -54,19 +53,153 @@ const COLOR_PICKER_SLIDER_CONTROL_CLASS =
   "flex touch-none select-none items-center data-disabled:pointer-events-none data-disabled:opacity-64 data-[orientation=horizontal]:w-full";
 const COLOR_PICKER_SLIDER_THUMB_CLASS =
   "block size-4 shrink-0 rounded-full border border-primary/50 bg-background shadow-xs/5 outline-none transition-[box-shadow,scale] has-focus-visible:ring-[3px] has-focus-visible:ring-ring/24 data-dragging:scale-110 disabled:pointer-events-none disabled:opacity-50 dark:border-background";
+const HEX_COLOR_RE = /^#?(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
 
 const clampChannel = (value: number, fallback: number) =>
   Number.isFinite(value) ? value : fallback;
 
-const getPickerState = (input: Parameters<typeof Color>[0], fallback: Parameters<typeof Color>[0]): ColorPickerState => {
-  const color = Color(input ?? fallback);
-  const [hue = 0, saturation = 0, brightness = 0] = color.hsv().array();
+const clampPercentage = (value: number) => Math.min(100, Math.max(0, value));
+const clampHue = (value: number) => ((value % 360) + 360) % 360;
+
+function normalizeHexColor(value: string) {
+  const trimmed = value.trim();
+  if (!HEX_COLOR_RE.test(trimmed)) {
+    return null;
+  }
+
+  const prefixed = trimmed.startsWith("#") ? trimmed : `#${trimmed}`;
+  if (prefixed.length === 4) {
+    return `#${prefixed[1]}${prefixed[1]}${prefixed[2]}${prefixed[2]}${prefixed[3]}${prefixed[3]}`.toLowerCase();
+  }
+
+  return prefixed.toLowerCase();
+}
+
+function hexToRgb(value: string) {
+  const normalizedHex = normalizeHexColor(value);
+  if (!normalizedHex) {
+    return null;
+  }
+
+  const hex = normalizedHex.slice(1);
+  return {
+    blue: parseInt(hex.slice(4, 6), 16),
+    green: parseInt(hex.slice(2, 4), 16),
+    red: parseInt(hex.slice(0, 2), 16),
+  };
+}
+
+function rgbToHex(red: number, green: number, blue: number) {
+  return `#${[red, green, blue]
+    .map((channel) => Math.round(channel).toString(16).padStart(2, "0"))
+    .join("")}`;
+}
+
+function rgbToHsv(red: number, green: number, blue: number): ColorPickerState {
+  const normalizedRed = red / 255;
+  const normalizedGreen = green / 255;
+  const normalizedBlue = blue / 255;
+  const max = Math.max(normalizedRed, normalizedGreen, normalizedBlue);
+  const min = Math.min(normalizedRed, normalizedGreen, normalizedBlue);
+  const delta = max - min;
+
+  let hue = 0;
+  if (delta !== 0) {
+    if (max === normalizedRed) {
+      hue = 60 * (((normalizedGreen - normalizedBlue) / delta) % 6);
+    } else if (max === normalizedGreen) {
+      hue = 60 * ((normalizedBlue - normalizedRed) / delta + 2);
+    } else {
+      hue = 60 * ((normalizedRed - normalizedGreen) / delta + 4);
+    }
+  }
 
   return {
-    alpha: clampChannel(color.alpha() * 100, 100),
-    brightness: clampChannel(brightness, 0),
-    hue: clampChannel(hue, 0),
-    saturation: clampChannel(saturation, 0),
+    alpha: 100,
+    brightness: clampPercentage(max * 100),
+    hue: clampHue(hue),
+    saturation: max === 0 ? 0 : clampPercentage((delta / max) * 100),
+  };
+}
+
+function hsvToRgb(hue: number, saturation: number, brightness: number) {
+  const normalizedHue = clampHue(hue);
+  const normalizedSaturation = clampPercentage(saturation) / 100;
+  const normalizedBrightness = clampPercentage(brightness) / 100;
+  const chroma = normalizedBrightness * normalizedSaturation;
+  const hueSegment = normalizedHue / 60;
+  const x = chroma * (1 - Math.abs((hueSegment % 2) - 1));
+  const match = normalizedBrightness - chroma;
+
+  const [redPrime, greenPrime, bluePrime] =
+    hueSegment < 1
+      ? [chroma, x, 0]
+      : hueSegment < 2
+        ? [x, chroma, 0]
+        : hueSegment < 3
+          ? [0, chroma, x]
+          : hueSegment < 4
+            ? [0, x, chroma]
+            : hueSegment < 5
+              ? [x, 0, chroma]
+              : [chroma, 0, x];
+
+  return {
+    blue: Math.round((bluePrime + match) * 255),
+    green: Math.round((greenPrime + match) * 255),
+    red: Math.round((redPrime + match) * 255),
+  };
+}
+
+function rgbToHsl(red: number, green: number, blue: number) {
+  const normalizedRed = red / 255;
+  const normalizedGreen = green / 255;
+  const normalizedBlue = blue / 255;
+  const max = Math.max(normalizedRed, normalizedGreen, normalizedBlue);
+  const min = Math.min(normalizedRed, normalizedGreen, normalizedBlue);
+  const delta = max - min;
+  const lightness = (max + min) / 2;
+
+  if (delta === 0) {
+    return [0, 0, lightness * 100];
+  }
+
+  const saturation = delta / (1 - Math.abs(2 * lightness - 1));
+  const hue = rgbToHsv(red, green, blue).hue;
+  return [hue, saturation * 100, lightness * 100];
+}
+
+type PickerColor = {
+  hex: () => string;
+  hsl: () => { array: () => number[] };
+  rgb: () => { array: () => number[]; string: () => string };
+};
+
+function createPickerColor(state: ColorPickerState): PickerColor {
+  const { red, green, blue } = hsvToRgb(state.hue, state.saturation, state.brightness);
+  const alpha = clampPercentage(state.alpha) / 100;
+
+  return {
+    hex: () => rgbToHex(red, green, blue),
+    hsl: () => ({
+      array: () => rgbToHsl(red, green, blue),
+    }),
+    rgb: () => ({
+      array: () => [red, green, blue],
+      string: () => `rgba(${red}, ${green}, ${blue}, ${alpha})`,
+    }),
+  };
+}
+
+const getPickerState = (input: string | undefined, fallback: string): ColorPickerState => {
+  const rgb = hexToRgb(input ?? fallback) ?? hexToRgb(fallback) ?? { blue: 0, green: 0, red: 0 };
+  const color = rgbToHsv(rgb.red, rgb.green, rgb.blue);
+
+  return {
+    alpha: clampChannel(color.alpha, 100),
+    brightness: clampChannel(color.brightness, 0),
+    hue: clampChannel(color.hue, 0),
+    saturation: clampChannel(color.saturation, 0),
   };
 };
 
@@ -80,9 +213,9 @@ export const useColorPicker = () => {
 };
 
 export type ColorPickerProps = Omit<HTMLAttributes<HTMLDivElement>, "onChange"> & {
-  defaultValue?: Parameters<typeof Color>[0];
-  onChange?: (value: ReturnType<typeof Color>) => void;
-  value?: Parameters<typeof Color>[0];
+  defaultValue?: string;
+  onChange?: (value: PickerColor) => void;
+  value?: string;
 };
 
 export const ColorPicker = ({
@@ -110,11 +243,7 @@ export const ColorPicker = ({
         setState(nextState);
       }
 
-      onChange?.(
-        Color.hsv(nextState.hue, nextState.saturation, nextState.brightness).alpha(
-          nextState.alpha / 100,
-        ),
-      );
+      onChange?.(createPickerColor(nextState));
     },
     [onChange, value],
   );
@@ -273,8 +402,8 @@ export type ColorPickerAlphaProps = SliderPrimitive.Root.Props<number>;
 
 export const ColorPickerAlpha = ({ className, ...props }: ColorPickerAlphaProps) => {
   const { alpha, brightness, hue, saturation, setAlpha } = useColorPicker();
-  const opaqueColor = Color.hsv(hue, saturation, brightness).alpha(1).rgb().string();
-  const transparentColor = Color.hsv(hue, saturation, brightness).alpha(0).rgb().string();
+  const opaqueColor = createPickerColor({ alpha: 100, brightness, hue, saturation }).rgb().string();
+  const transparentColor = createPickerColor({ alpha: 0, brightness, hue, saturation }).rgb().string();
 
   return (
     <SliderPrimitive.Root
@@ -333,8 +462,7 @@ export const ColorPickerEyeDropper = ({ className, ...props }: ColorPickerEyeDro
       // @ts-expect-error experimental browser API
       const eyeDropper = new EyeDropper();
       const result = await eyeDropper.open();
-      const color = Color(result.sRGBHex);
-      const [hue, saturation, brightness] = color.hsv().array();
+      const { brightness, hue, saturation } = getPickerState(result.sRGBHex, "#000000");
 
       setHue(hue);
       setSaturation(saturation);
@@ -406,7 +534,7 @@ export type ColorPickerFormatProps = HTMLAttributes<HTMLDivElement>;
 
 export const ColorPickerFormat = ({ className, ...props }: ColorPickerFormatProps) => {
   const { alpha, brightness, hue, mode, saturation } = useColorPicker();
-  const color = Color.hsv(hue, saturation, brightness).alpha(alpha / 100);
+  const color = createPickerColor({ alpha, brightness, hue, saturation });
 
   if (mode === "hex") {
     return (

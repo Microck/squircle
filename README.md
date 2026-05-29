@@ -59,6 +59,18 @@ pnpm dev --hostname 0.0.0.0 --port 3004
 - metadata is not preserved during export
 - the output keeps the rendered source dimensions after the chosen crop, corner, shadow, and outline settings are applied
 
+## privacy and security
+
+`squircle` processes files in the browser. Source images, rendered canvases, and exported blobs are not uploaded, persisted to browser storage, or sent through analytics calls.
+
+The app relies on object URLs for local previews and downloads, then revokes them when files are removed or the page unloads. Production builds also ship security headers that deny framing and unnecessary browser capabilities such as camera, microphone, geolocation, payment, and USB access.
+
+## dependency posture
+
+The runtime dependency set is intentionally small. GIF support still uses `gifenc` and `gifuct-js`; both are older packages, so the project keeps GIF decode, composition, and export behavior covered by focused tests instead of hiding that risk behind compatibility glue.
+
+Color conversion is implemented locally for the picker because the app only needs hex, HSV, RGB, and HSL conversions. This avoids carrying a general-purpose color parsing dependency for a narrow UI control.
+
 ## local development
 
 `squircle` is a next.js app-router app with react 19, tailwind css v4, base ui primitives, `three` for the pixel-snow background, and `jszip` for batch export packaging.

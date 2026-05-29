@@ -3,7 +3,6 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, test } from "vitest";
 import { useState } from "react";
-import Color from "color";
 import { ColorPicker, ColorPickerHue, ColorPickerSelection } from "@/components/ui/color-picker";
 
 class ResizeObserverMock {
@@ -54,9 +53,7 @@ describe("ColorPicker", () => {
     fireEvent.pointerMove(window, { clientX: 150, clientY: 20 });
     fireEvent.pointerUp(window);
 
-    expect(screen.getByTestId("color-value").textContent).toBe(
-      Color.hsv(0, (150 / 176) * 100, (1 - 20 / 176) * 100).hex().toLowerCase(),
-    );
+    expect(screen.getByTestId("color-value").textContent).toBe("#e22121");
   });
 
   test("updates hue when dragging horizontally across the hue slider", () => {
