@@ -66,6 +66,8 @@ test('animated GIF export retains multiple frames',async({app,browser,screen})=>
  expect(frames.length).toBe(2);
  expect(frames[0].dims.width).toBe(32);
  expect(frames[0].dims.height).toBe(32);
+ const centers=frames.map(frame=>{const offset=(16*frame.dims.width+16)*4;return Array.from(frame.patch!.slice(offset,offset+4));});
+ expect(centers).toEqual([[255,0,0,255],[0,0,255,255]]);
 });
 
 test('invalid upload recovers and clearing removes source object URLs',async({app,browser,screen})=>{
