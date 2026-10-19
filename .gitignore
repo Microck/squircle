@@ -46,3 +46,7 @@ playwright-report/
 next-env.d.ts
 .agent-tmp/
 .residue/
+
+# Browser-test artifacts and generated synthetic inputs.
+.e2e/
+tests/.fixtures/

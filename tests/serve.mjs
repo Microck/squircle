@@ -1,0 +1,15 @@
+import {mkdir,writeFile} from 'node:fs/promises';
+import {spawn} from 'node:child_process';
+import gifenc from 'gifenc';
+const {GIFEncoder}=gifenc;
+await mkdir('tests/.fixtures',{recursive:true});
+await writeFile('tests/.fixtures/bright.svg','<svg xmlns="http://www.w3.org/2000/svg" width="64" height="48"><rect width="64" height="48" fill="#ff8040"/></svg>');
+await writeFile('tests/.fixtures/other.svg','<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32"><rect width="32" height="32" fill="#0088ff"/></svg>');
+await writeFile('tests/.fixtures/broken.svg','not an image');
+const gif=GIFEncoder();const palette=[[255,0,0],[0,0,255]];
+for(const color of [0,1])gif.writeFrame(new Uint8Array(16*16).fill(color),16,16,{palette,delay:80,repeat:0});
+gif.finish();await writeFile('tests/.fixtures/animated.gif',gif.bytes());
+const child=spawn(process.execPath,['node_modules/next/dist/bin/next','start','--hostname','127.0.0.1','--port','4189'],{stdio:'inherit',env:{...process.env,NEXT_TELEMETRY_DISABLED:'1'}});
+for(const signal of ['SIGINT','SIGTERM'])process.on(signal,()=>child.kill(signal));
+child.on('error',error=>{console.error(error);process.exit(1);});
+child.on('exit',code=>process.exit(code??0));
