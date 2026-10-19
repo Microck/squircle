@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { describe, expect, test } from "vitest";
 import { applyExportDeband } from "@/lib/export-deband";
 
@@ -36,4 +37,19 @@ describe("applyExportDeband", () => {
 
     expect(pixels).toEqual(before);
   });
+});
+
+test.each([
+  [1, 1, "2d2589527b983e34aa3508172589c3a5d3dead62754a15f2943938860eb16a70"],
+  [31, 23, "bada1bff4ea6349a2397da7d772935efd1633d9437d74a5edb019e9f2685683c"],
+  [64, 48, "3857005a81c67cea0c57e2477bd31e5072feff5e13d9272e87937a8923f827b3"],
+] as const)("preserves baseline pixel bytes for %ix%i", (width, height, checksum) => {
+  const pixels = new Uint8ClampedArray(width * height * 4);
+  let seed = 42;
+  for (let i = 0; i < pixels.length; i++) {
+    seed = (Math.imul(seed, 1664525) + 1013904223) | 0;
+    pixels[i] = seed >>> 24;
+  }
+  applyExportDeband(pixels, width, height);
+  expect(createHash("sha256").update(pixels).digest("hex")).toBe(checksum);
 });

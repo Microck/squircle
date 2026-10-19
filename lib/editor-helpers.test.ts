@@ -39,6 +39,10 @@ describe("editor helpers", () => {
   });
 
   test("validates image dimensions with actionable errors", () => {
+    for (const width of [NaN, Infinity, 1.5]) {
+      expect(() => assertSupportedImageDimensions(width, 100)).toThrow();
+      expect(() => assertSupportedImageDimensions(100, width)).toThrow();
+    }
     expect(() => assertSupportedImageDimensions(0, 100)).toThrow("SVG files need intrinsic width and height");
     expect(() => assertSupportedImageDimensions(8193, 100)).toThrow("8192x8192");
     expect(() => assertSupportedImageDimensions(8192, 8192)).not.toThrow();

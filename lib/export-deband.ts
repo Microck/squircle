@@ -22,16 +22,12 @@ const DARK_LUMA_THRESHOLD = 96;
 // break up contour lines in dark regions.
 const MAX_DITHER_DELTA = 4;
 
-function clampToByte(value: number) {
-  return Math.max(0, Math.min(255, value));
-}
-
 function getLuma(red: number, green: number, blue: number) {
   return red * 0.2126 + green * 0.7152 + blue * 0.0722;
 }
 
-function getDeterministicNoise(x: number, y: number) {
-  let seed = Math.imul(x + 1, 374761393) ^ Math.imul(y + 1, 668265263);
+function getDeterministicNoise(x: number, rowSeed: number) {
+  let seed = Math.imul(x + 1, 374761393) ^ rowSeed;
   seed = Math.imul(seed ^ (seed >>> 13), 1274126177);
   return ((seed ^ (seed >>> 16)) >>> 0) / 0xffffffff;
 }
@@ -42,6 +38,7 @@ export function applyExportDeband(
   height: number,
 ) {
   for (let y = 0; y < height; y += 1) {
+    const rowSeed = Math.imul(y + 1, 668265263);
     for (let x = 0; x < width; x += 1) {
       const index = (y * width + x) * 4;
       const alpha = pixels[index + 3];
@@ -60,12 +57,13 @@ export function applyExportDeband(
       }
 
       const strength = ((DARK_LUMA_THRESHOLD - luma) / DARK_LUMA_THRESHOLD) * MAX_DITHER_DELTA;
-      const centeredNoise = (getDeterministicNoise(x, y) - 0.5) * 2;
+      const centeredNoise = (getDeterministicNoise(x, rowSeed) - 0.5) * 2;
       const delta = Math.round(centeredNoise * strength);
 
-      pixels[index] = clampToByte(red + delta);
-      pixels[index + 1] = clampToByte(green + delta);
-      pixels[index + 2] = clampToByte(blue + delta);
+      // Integer values are saturated by Uint8ClampedArray itself.
+      pixels[index] = red + delta;
+      pixels[index + 1] = green + delta;
+      pixels[index + 2] = blue + delta;
     }
   }
 }

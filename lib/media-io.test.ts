@@ -39,7 +39,7 @@ describe("loadImage", () => {
     const promise = loadImage("data:image/png;base64,test");
 
     const instance = FakeImage.mock.instances[0] as HTMLImageElement;
-    const onload = (instance as Record<string, unknown>).onload as (ev: Event) => void;
+    const onload = instance.onload as (ev: Event) => void;
     onload(new Event("load"));
 
     const result = await promise;
@@ -57,7 +57,7 @@ describe("loadImage", () => {
     const promise = loadImage("invalid://url");
 
     const instance = FakeImage.mock.instances[0] as HTMLImageElement;
-    const onerror = (instance as Record<string, unknown>).onerror as (ev: Event) => void;
+    const onerror = instance.onerror as (ev: Event) => void;
     onerror(new Event("error"));
 
     await expect(promise).rejects.toThrow("Couldn't decode that image.");

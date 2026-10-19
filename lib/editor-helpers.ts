@@ -102,7 +102,7 @@ export function getFileErrorMessage(error: unknown) {
 }
 
 export function assertSupportedImageDimensions(width: number, height: number) {
-  if (width < 1 || height < 1) {
+  if (!Number.isInteger(width) || !Number.isInteger(height) || width < 1 || height < 1) {
     throw new Error("Image dimensions are invalid. SVG files need intrinsic width and height.");
   }
 

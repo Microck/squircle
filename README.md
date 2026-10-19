@@ -57,7 +57,7 @@ pnpm dev --hostname 0.0.0.0 --port 3004
 - animated gif exports are `gif`
 - video input is not supported yet
 - metadata is not preserved during export
-- the output keeps the rendered source dimensions after the chosen crop, corner, shadow, and outline settings are applied
+- the source keeps its rendered dimensions inside an 8px safety gutter on each side; shadow and outline settings can add further space
 
 ## privacy and security
 
@@ -100,3 +100,9 @@ pnpm build
 ## license
 
 released under the [mit license](LICENSE).
+
+Decorative WebGL snow is disabled when the system requests reduced motion, including when that preference changes while the page is open.
+
+## deterministic browser verification
+
+With Node 22.22.3+ (22.x) or 24.8+, run `pnpm install`, `pnpm build`, `pnpm exec e2e-web install chromium`, then `pnpm test:e2e`. The pinned tester-army/e2e suite owns its local production server and generates tiny synthetic SVG/GIF inputs. It covers desktop/mobile PNG export dimensions and transparency, ZIP contents, actual GIF preview animation and frame-preserving export, invalid-file recovery, and object-URL cleanup. Files stay local; no account or image service is used.
