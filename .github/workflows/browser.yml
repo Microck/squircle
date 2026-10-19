@@ -25,9 +25,9 @@ jobs:
       - run: pnpm exec e2e-web install chromium --with-deps
       - run: pnpm test:e2e
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        if: failure()
+        if: always()
         with:
-          name: editor-browser-traces
+          name: editor-browser-evidence
           path: .e2e/results/
           include-hidden-files: true
           retention-days: 7
