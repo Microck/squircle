@@ -57,7 +57,7 @@ pnpm dev --hostname 0.0.0.0 --port 3004
 - animated gif exports are `gif`
 - video input is not supported yet
 - metadata is not preserved during export
-- the output keeps the rendered source dimensions after the chosen crop, corner, shadow, and outline settings are applied
+- the source keeps its rendered dimensions inside an 8px safety gutter on each side; shadow and outline settings can add further space
 
 ## privacy and security
 
@@ -100,6 +100,8 @@ pnpm build
 ## license
 
 released under the [mit license](LICENSE).
+
+Decorative WebGL snow is disabled when the system requests reduced motion, including when that preference changes while the page is open.
 
 ## deterministic browser verification
 
