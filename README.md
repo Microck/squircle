@@ -90,6 +90,8 @@ pnpm start
 
 ## testing
 
+This project is tested with BrowserStack
+
 ```bash
 pnpm test
 pnpm lint
